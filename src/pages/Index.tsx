@@ -41,7 +41,7 @@ const Index = () => {
   <SEO title="SynapFlow – Accueil" description="Auto‑évaluez la maturité IA de votre entreprise par département et générez un plan d’action priorisé." canonical={window.location.origin + "/"} />
       <section className="grid md:grid-cols-2 gap-8 items-center">
         <div>
-          <h1 className="text-4xl md:text-5xl font-bold tracking-tight mb-4">SynapFlow • Audit de Maturité IA</h1>
+          <h1 className="text-4xl md:text-5xl font-bold tracking-tight mb-4">Audit de Maturité IA</h1>
           <p className="text-lg text-muted-foreground mb-6">Évaluez votre maturité IA par département (stratégie, données, MLOps/LLMOps, GenAI, sécurité, conformité, adoption, ROI) et obtenez un plan d’action priorisé.</p>
           <div className="p-4 rounded-xl" style={{ background: 'var(--gradient-hero)', boxShadow: 'var(--shadow-elevated)' }}>
             <p className="text-primary-foreground">Conçu pour ateliers — inspiré NIST AI RMF, ISO/IEC 23894/42001, EU AI Act.</p>
