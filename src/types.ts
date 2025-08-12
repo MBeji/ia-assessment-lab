@@ -1,0 +1,126 @@
+// Domain types for the Audit de Maturité IA app
+export type DepartmentId =
+  | "DG"
+  | "RH"
+  | "DAF"
+  | "CDG"
+  | "MG"
+  | "Sales"
+  | "Marketing"
+  | "Communication"
+  | "Operations"
+  | "IT";
+
+export type MaturityLevel = "Initial" | "Émergent" | "Développé" | "Avancé" | "Leader";
+
+export interface Organization {
+  id: string;
+  name: string;
+  sector: string;
+  size: string;
+  createdAt: string;
+}
+
+export interface Department {
+  id: DepartmentId;
+  name: string;
+}
+
+export interface Category {
+  id: string;
+  name: string;
+  description: string;
+}
+
+export interface Question {
+  id: string;
+  code: string;
+  text: string;
+  categoryId: string;
+  appliesToDepartments: (DepartmentId | "ALL")[];
+  isAI: boolean;
+  weight: number;
+  choices: number[]; // [0..5]
+  allowNA: boolean;
+  references: string[];
+  evidenceRequiredThreshold: number; // typically 4
+}
+
+export interface Assessment {
+  id: string;
+  orgId: string;
+  assessorName: string;
+  assessorEmail: string;
+  selectedDepartments: DepartmentId[];
+  startedAt: string;
+  completedAt?: string;
+}
+
+export interface ResponseRow {
+  id: string;
+  assessmentId: string;
+  questionId: string;
+  departmentId: DepartmentId;
+  value: number | null; // 0..5 or null
+  isNA: boolean;
+  comment?: string;
+  evidence?: string; // URL or text
+}
+
+export interface Scorecard {
+  id: string;
+  assessmentId: string;
+  categoryScores: Record<string, number>; // 0-100 by categoryId
+  departmentScores: Record<DepartmentId, number>; // 0-100
+  aiCoreScore: number; // 0-100
+  globalScore: number; // 0-100
+  maturityLevel: MaturityLevel;
+}
+
+export type Horizon = "0-90j" | "3-6m" | "6-12m";
+export type ImpactLevel = "H" | "M" | "L";
+export type EffortLevel = "H" | "M" | "L";
+
+export interface ActionItemDef {
+  horizon: Horizon;
+  text: string;
+  impact: ImpactLevel;
+  effort: EffortLevel;
+}
+
+export interface ActionRule {
+  id: string;
+  scope: "category" | "question";
+  categoryId?: string;
+  questionId?: string;
+  threshold: number; // e.g. <=2
+  actions: ActionItemDef[];
+}
+
+export interface PlanItem {
+  ruleId: string;
+  horizon: Horizon;
+  text: string;
+  impact: ImpactLevel;
+  effort: EffortLevel;
+  linkedTo: { categoryId?: string; questionId?: string };
+}
+
+export interface Plan {
+  id: string;
+  assessmentId: string;
+  items: PlanItem[];
+}
+
+export interface AppStateSnapshot {
+  organization?: Organization;
+  assessment?: Assessment;
+  responses: ResponseRow[];
+  scorecard?: Scorecard;
+  plan?: Plan;
+  categories: Category[];
+  departments: Department[];
+  questions: Question[];
+  rules: ActionRule[];
+  departmentWeights: Partial<Record<DepartmentId, number>>; // default 1
+}
