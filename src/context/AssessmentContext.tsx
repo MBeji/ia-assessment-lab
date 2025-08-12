@@ -339,6 +339,7 @@ export const AssessmentProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     answeredRatio,
   templates: TEMPLATES,
   setTemplateId: (id: string) => setTemplateIdState(id),
+  templateId,
   };
 
   return <AssessmentContext.Provider value={value}>{children}</AssessmentContext.Provider>;

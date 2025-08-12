@@ -116,6 +116,7 @@ export interface QuestionnaireTemplate {
   id: string;
   name: string;
   description: string;
+  assessmentScope: "per-department" | "organization"; // controls UI grouping
   categories: Category[];
   questions: Question[];
   rules: ActionRule[];
