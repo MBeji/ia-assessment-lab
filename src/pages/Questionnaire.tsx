@@ -46,17 +46,14 @@ const Questionnaire = () => {
 
   const respFor = (qid: string) => responses.find(r => r.assessmentId === assessment.id && r.departmentId === activeDept && r.questionId === qid);
 
-  const canSubmit = answeredRatio() >= 0.8;
-
   const onResults = () => {
-    if (!canSubmit) return alert("Veuillez répondre à au moins 80% des questions (hors N/A).");
     computeScores();
     nav('/resultats');
   };
 
   return (
     <Layout>
-      <SEO title="Audit IA – Questionnaire" description="Répondez au questionnaire par département et catégorie." canonical={window.location.origin + "/questionnaire"} />
+  <SEO title="SynapFlow – Questionnaire" description="Répondez au questionnaire par département et catégorie." canonical={window.location.origin + "/questionnaire"} />
       <div className="flex items-center justify-between mb-4">
         <div>
           <h1 className="text-2xl font-semibold">Questionnaire</h1>
@@ -129,7 +126,7 @@ const Questionnaire = () => {
                     {step < categories.length-1 ? (
                       <Button onClick={()=> setStep(s=> Math.min(categories.length-1, s+1))}>Suivant</Button>
                     ) : (
-                      <Button variant="hero" onClick={onResults} disabled={!canSubmit}>Voir les résultats</Button>
+                      <Button variant="hero" onClick={onResults}>Voir les résultats</Button>
                     )}
                   </div>
                 </div>

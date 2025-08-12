@@ -6,7 +6,7 @@ const Referentiel = () => {
   return (
     <Layout>
       <SEO
-        title="Audit IA – Référentiel consultants"
+        title="SynapFlow – Référentiel consultants"
         description="Processus, MODOP, livrables et liens utiles pour conduire un audit IA pas à pas."
         canonical={window.location.origin + "/referentiel"}
       />

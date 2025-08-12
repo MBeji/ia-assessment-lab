@@ -14,7 +14,7 @@ export function toCSV(rows: any[]): string {
   if (!rows.length) return '';
   const headers = Array.from(new Set(rows.flatMap(r => Object.keys(r))));
   const esc = (v: any) => {
-    if (v === null || v === undefined) return '';
+  if (v === null || v === undefined) return '""';
     const s = String(v).replace(/"/g, '""');
     return `"${s}` + `"`;
   };

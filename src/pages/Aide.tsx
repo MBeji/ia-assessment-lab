@@ -4,14 +4,14 @@ import { SEO } from "@/components/SEO";
 const Aide = () => {
   return (
     <Layout>
-      <SEO title="Audit IA – Aide" description="Méthodologie, échelle et calculs de l'audit IA." canonical={window.location.origin + "/aide"} />
+  <SEO title="SynapFlow – Aide" description="Méthodologie, échelle et calculs de l'audit IA." canonical={window.location.origin + "/aide"} />
       <h1 className="text-3xl font-semibold mb-4">Aide & Méthodologie</h1>
       <div className="prose max-w-none">
         <h2>Échelle de maturité</h2>
         <p>Likert 0–5 + N/A: 0 Inexistant, 1 Ad hoc, 2 Basique, 3 Standardisé, 4 Intégré/Mesuré, 5 Optimisé/Automatisé.</p>
         <h2>Calcul des scores</h2>
         <ul>
-          <li>Par question: 0–5, N/A exclu, poids appliqué.</li>
+          <li>Par question: 0–5, N/A exclu, poids appliqué. Par défaut, les réponses sont N/A jusqu’à saisie.</li>
           <li>Par catégorie: moyenne pondérée des questions pertinentes, puis pourcentage (x/5*100).</li>
           <li>Par département: moyenne des catégories.</li>
           <li>Global: moyenne pondérée des départements (poids réglables dans Admin).</li>

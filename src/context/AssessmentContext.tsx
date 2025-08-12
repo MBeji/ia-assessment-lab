@@ -101,7 +101,10 @@ export const AssessmentProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     const selected = assessment.selectedDepartments;
     const total = selected.reduce((acc, d) => acc + relevantQuestionIdsByDept[d].length, 0);
     if (total === 0) return 0;
-    const answered = responses.filter(r => r.assessmentId === assessment.id && selected.includes(r.departmentId) && (r.isNA || r.value !== null)).length;
+    // Only count non-NA answers as progress to avoid 100% when defaults are NA
+    const answered = responses.filter(
+      r => r.assessmentId === assessment.id && selected.includes(r.departmentId) && !r.isNA && r.value !== null
+    ).length;
     return answered / total;
   };
 
@@ -115,7 +118,21 @@ export const AssessmentProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       selectedDepartments, startedAt: now,
     };
     setAssessment(assessment);
-    setResponses([]);
+    // Prefill all relevant question/department pairs with default NA responses
+    const prefilled: ResponseRow[] = [];
+    selectedDepartments.forEach(d => {
+      (relevantQuestionIdsByDept[d] || []).forEach(qid => {
+        prefilled.push({
+          id: genId(),
+          assessmentId: assessment.id,
+          questionId: qid,
+          departmentId: d,
+          value: null,
+          isNA: true,
+        });
+      });
+    });
+    setResponses(prefilled);
     setScorecard(undefined);
     setPlan(undefined);
   };

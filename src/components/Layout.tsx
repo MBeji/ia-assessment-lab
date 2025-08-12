@@ -17,7 +17,7 @@ export const Layout: React.FC<{ children: React.ReactNode }>= ({ children }) => 
     <div className="min-h-screen bg-gradient-to-b from-background to-muted/30">
       <header className="sticky top-0 z-40 border-b bg-background/80 backdrop-blur supports-[backdrop-filter]:bg-background/60">
         <div className="container mx-auto flex h-14 items-center justify-between px-4">
-          <Link to="/" className="font-semibold tracking-tight">Audit de Maturité IA</Link>
+          <Link to="/" className="font-semibold tracking-tight">SynapFlow</Link>
           <nav className="hidden md:flex items-center gap-4 text-sm">
             {navItems.map((n) => (
               <NavLink key={n.to} to={n.to} className={({isActive}) => cn("px-2 py-1 rounded-md hover:bg-accent", isActive && "bg-accent text-accent-foreground")}>{n.label}</NavLink>
@@ -33,7 +33,7 @@ export const Layout: React.FC<{ children: React.ReactNode }>= ({ children }) => 
       </main>
       <footer className="border-t py-6 text-sm text-muted-foreground">
         <div className="container mx-auto px-4 flex flex-col md:flex-row items-center justify-between gap-2">
-          <p>© {new Date().getFullYear()} Audit IA. Tous droits réservés.</p>
+          <p>© {new Date().getFullYear()} SynapFlow. Tous droits réservés.</p>
           <div className="flex items-center gap-4">
             <a href="/aide" className="hover:underline">Aide</a>
             <a href="/referentiel" className="hover:underline">Référentiel</a>

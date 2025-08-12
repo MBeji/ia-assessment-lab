@@ -4,6 +4,8 @@ import { Layout } from "@/components/Layout";
 import { SEO } from "@/components/SEO";
 import { useAssessment } from "@/context/AssessmentContext";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { ScoreGauge } from "@/components/charts/ScoreGauge";
 import { RadarByCategory } from "@/components/charts/RadarByCategory";
@@ -33,9 +35,44 @@ const Results = () => {
   const topCats = [...categories].sort((a,b)=> (sc.categoryScores[b.id]||0)-(sc.categoryScores[a.id]||0)).slice(0,3);
   const lowCats = [...categories].sort((a,b)=> (sc.categoryScores[a.id]||0)-(sc.categoryScores[b.id]||0)).slice(0,3);
 
+  // Coverage computation: total relevant questions vs answered (non-NA)
+  const totalRelevant = assessment.selectedDepartments.reduce((acc, d) => acc + questions.filter(q => q.categoryId && (q.appliesToDepartments.includes('ALL') || q.appliesToDepartments.includes(d))).length, 0);
+  const answeredNonNA = responses.filter(r => r.assessmentId === assessment.id && assessment.selectedDepartments.includes(r.departmentId) && !r.isNA && r.value !== null).length;
+  const remaining = Math.max(0, totalRelevant - answeredNonNA);
+
+  // Low coverage categories (<50%) listing
+  const lowCoverage = categories.map(cat => {
+    const rel = assessment.selectedDepartments.flatMap(d => questions.filter(q => q.categoryId === cat.id && (q.appliesToDepartments.includes('ALL') || q.appliesToDepartments.includes(d))))
+    const relIds = new Set(rel.map(q=>q.id));
+    const ans = responses.filter(r => r.assessmentId === assessment.id && assessment.selectedDepartments.includes(r.departmentId) && relIds.has(r.questionId) && !r.isNA && r.value !== null).length;
+    const cov = rel.length ? ans / rel.length : 1;
+    return { cat, cov };
+  }).filter(x => x.cov < 0.5);
+
   return (
     <Layout>
-      <SEO title="Audit IA – Résultats" description="Scores par catégorie et département, forces/faiblesses." canonical={window.location.origin + "/resultats"} />
+  <SEO title="SynapFlow – Résultats" description="Scores par catégorie et département, forces/faiblesses." canonical={window.location.origin + "/resultats"} />
+      <div className="flex items-center justify-between mb-4">
+        <div />
+        {remaining > 0 && (
+          <Badge variant="secondary">Questions restantes: {remaining}</Badge>
+        )}
+      </div>
+
+      {lowCoverage.length > 0 && (
+        <div className="mb-4">
+          <Alert>
+            <AlertTitle>Couverture incomplète</AlertTitle>
+            <AlertDescription>
+              Certaines catégories ont moins de 50% de réponses non‑N/A:&nbsp;
+              {lowCoverage.map(({cat, cov}, i) => (
+                <span key={cat.id}>{i>0 && ', '}{cat.name} ({Math.round(cov*100)}%)</span>
+              ))}
+            </AlertDescription>
+          </Alert>
+        </div>
+      )}
+
       <div className="grid md:grid-cols-3 gap-6">
         <Card className="md:col-span-1">
           <CardHeader>
