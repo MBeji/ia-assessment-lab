@@ -10,6 +10,7 @@ import Results from "./pages/Results";
 import Plan from "./pages/Plan";
 import Admin from "./pages/Admin";
 import Aide from "./pages/Aide";
+import Referentiel from "./pages/Referentiel";
 import { AssessmentProvider } from "./context/AssessmentContext";
 
 const queryClient = new QueryClient();
@@ -28,6 +29,7 @@ const App = () => (
             <Route path="/plan" element={<Plan />} />
             <Route path="/admin" element={<Admin />} />
             <Route path="/aide" element={<Aide />} />
+            <Route path="/referentiel" element={<Referentiel />} />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
           </Routes>
