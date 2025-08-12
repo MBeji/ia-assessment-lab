@@ -28,10 +28,14 @@ interface AssessmentContextValue extends AppStateSnapshot {
   generatePlan: (scorecard: Scorecard) => Plan;
   setDepartmentWeight: (dept: DepartmentId, weight: number) => void;
   addQuestion: (q: Question) => void;
+  updateQuestion: (q: Partial<Question> & { id: string }) => void;
+  removeQuestion: (id: string) => void;
   resetAll: () => void;
   answeredRatio: () => number; // 0..1
   templates: typeof TEMPLATES;
   setTemplateId: (id: string) => void;
+  templateId: string;
+  applyTemplate: (id: string, options?: { reset?: boolean }) => void;
 }
 
 const AssessmentContext = createContext<AssessmentContextValue | undefined>(undefined);
@@ -308,6 +312,32 @@ export const AssessmentProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     setQuestions(prev => [q, ...prev]);
   };
 
+  const updateQuestion = (q: Partial<Question> & { id: string }) => {
+    setQuestions(prev => prev.map(qq => (qq.id === q.id ? ({ ...qq, ...q } as Question) : qq)));
+  };
+
+  const removeQuestion = (id: string) => {
+    setQuestions(prev => prev.filter(q => q.id !== id));
+    // Also remove any responses for that question
+    setResponses(prev => prev.filter(r => r.questionId !== id));
+  };
+
+  const applyTemplate: AssessmentContextValue["applyTemplate"] = (id, options) => {
+    const tpl = TEMPLATES.find(t => t.id === id);
+    if (!tpl) return;
+    if (options?.reset) {
+      setOrganization(undefined);
+      setAssessment(undefined);
+      setResponses([]);
+      setScorecard(undefined);
+      setPlan(undefined);
+    }
+    setCategories(tpl.categories);
+    setQuestions(tpl.questions);
+    setRules(tpl.rules);
+    setTemplateIdState(tpl.id);
+  };
+
   const resetAll = () => {
     setOrganization(undefined);
     setAssessment(undefined);
@@ -335,11 +365,14 @@ export const AssessmentProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     generatePlan,
     setDepartmentWeight,
     addQuestion,
+  updateQuestion,
+  removeQuestion,
     resetAll,
     answeredRatio,
   templates: TEMPLATES,
   setTemplateId: (id: string) => setTemplateIdState(id),
   templateId,
+  applyTemplate,
   };
 
   return <AssessmentContext.Provider value={value}>{children}</AssessmentContext.Provider>;
