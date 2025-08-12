@@ -112,6 +112,16 @@ export interface Plan {
   items: PlanItem[];
 }
 
+export interface QuestionnaireTemplate {
+  id: string;
+  name: string;
+  description: string;
+  categories: Category[];
+  questions: Question[];
+  rules: ActionRule[];
+  defaultDepartmentWeights?: Partial<Record<DepartmentId, number>>;
+}
+
 export interface AppStateSnapshot {
   organization?: Organization;
   assessment?: Assessment;
@@ -123,4 +133,5 @@ export interface AppStateSnapshot {
   questions: Question[];
   rules: ActionRule[];
   departmentWeights: Partial<Record<DepartmentId, number>>; // default 1
+  templateId?: string; // which questionnaire template is active
 }

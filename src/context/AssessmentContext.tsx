@@ -14,6 +14,7 @@ import {
   MaturityLevel,
 } from "@/types";
 import { DEPT_DEFAULT_WEIGHTS, SEED_CATEGORIES, SEED_DEPARTMENTS, SEED_QUESTIONS, SEED_RULES } from "@/data/seeds";
+import { TEMPLATES } from "@/data/templates";
 
 // Simple UUID fallback if uuid package not present
 function genId() { try { return uuidv4(); } catch { return Math.random().toString(36).slice(2); } }
@@ -21,7 +22,7 @@ function genId() { try { return uuidv4(); } catch { return Math.random().toStrin
 const STORAGE_KEY = "audit-ia-state-v1";
 
 interface AssessmentContextValue extends AppStateSnapshot {
-  startAssessment: (org: Pick<Organization, "name" | "sector" | "size">, assessor: { name: string; email: string }, selectedDepartments: DepartmentId[]) => void;
+  startAssessment: (org: Pick<Organization, "name" | "sector" | "size">, assessor: { name: string; email: string }, selectedDepartments: DepartmentId[], templateId?: string) => void;
   updateResponse: (payload: Omit<ResponseRow, "id" | "assessmentId"> & { id?: string }) => void;
   computeScores: () => Scorecard;
   generatePlan: (scorecard: Scorecard) => Plan;
@@ -29,6 +30,8 @@ interface AssessmentContextValue extends AppStateSnapshot {
   addQuestion: (q: Question) => void;
   resetAll: () => void;
   answeredRatio: () => number; // 0..1
+  templates: typeof TEMPLATES;
+  setTemplateId: (id: string) => void;
 }
 
 const AssessmentContext = createContext<AssessmentContextValue | undefined>(undefined);
@@ -44,6 +47,7 @@ export const AssessmentProvider: React.FC<{ children: React.ReactNode }> = ({ ch
   const [departmentWeights, setDepartmentWeights] = useState<AppStateSnapshot["departmentWeights"]>(DEPT_DEFAULT_WEIGHTS);
   const [scorecard, setScorecard] = useState<Scorecard | undefined>();
   const [plan, setPlan] = useState<Plan | undefined>();
+  const [templateId, setTemplateIdState] = useState<string>(TEMPLATES[0]?.id || "");
 
   // Restore from localStorage
   useEffect(() => {
@@ -61,6 +65,7 @@ export const AssessmentProvider: React.FC<{ children: React.ReactNode }> = ({ ch
         setQuestions(parsed.questions || SEED_QUESTIONS);
         setRules(parsed.rules || SEED_RULES);
         setDepartmentWeights(parsed.departmentWeights || DEPT_DEFAULT_WEIGHTS);
+  if (parsed.templateId) setTemplateIdState(parsed.templateId);
       } catch {}
     }
   }, []);
@@ -78,23 +83,24 @@ export const AssessmentProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       questions,
       rules,
       departmentWeights,
+    templateId,
     };
     localStorage.setItem(STORAGE_KEY, JSON.stringify(snapshot));
-  }, [organization, assessment, responses, scorecard, plan, categories, departments, questions, rules, departmentWeights]);
+  }, [organization, assessment, responses, scorecard, plan, categories, departments, questions, rules, departmentWeights, templateId]);
 
   const relevantQuestionIdsByDept = useMemo(() => {
     const map: Record<DepartmentId, string[]> = {
       DG: [], RH: [], DAF: [], CDG: [], MG: [], Sales: [], Marketing: [], Communication: [], Operations: [], IT: [],
     } as Record<DepartmentId, string[]>;
     questions.forEach(q => {
-      SEED_DEPARTMENTS.forEach(d => {
+      departments.forEach(d => {
         if (q.appliesToDepartments.includes("ALL") || q.appliesToDepartments.includes(d.id)) {
           map[d.id].push(q.id);
         }
       });
     });
     return map;
-  }, [questions]);
+  }, [questions, departments]);
 
   const answeredRatio = () => {
     if (!assessment) return 0;
@@ -108,7 +114,7 @@ export const AssessmentProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     return answered / total;
   };
 
-  const startAssessment: AssessmentContextValue["startAssessment"] = (org, assessor, selectedDepartments) => {
+  const startAssessment: AssessmentContextValue["startAssessment"] = (org, assessor, selectedDepartments, selectedTemplateId) => {
     const orgId = genId();
     const now = new Date().toISOString();
     const organization = { id: orgId, name: org.name, sector: org.sector, size: org.size, createdAt: now };
@@ -118,6 +124,14 @@ export const AssessmentProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       selectedDepartments, startedAt: now,
     };
     setAssessment(assessment);
+    // Apply selected template (or keep current if not provided)
+    const tpl = TEMPLATES.find(t => t.id === (selectedTemplateId || templateId)) || TEMPLATES[0];
+    if (tpl) {
+      setCategories(tpl.categories);
+      setQuestions(tpl.questions);
+      setRules(tpl.rules);
+      setTemplateIdState(tpl.id);
+    }
     // Prefill all relevant question/department pairs with default NA responses
     const prefilled: ResponseRow[] = [];
     selectedDepartments.forEach(d => {
@@ -323,6 +337,8 @@ export const AssessmentProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     addQuestion,
     resetAll,
     answeredRatio,
+  templates: TEMPLATES,
+  setTemplateId: (id: string) => setTemplateIdState(id),
   };
 
   return <AssessmentContext.Provider value={value}>{children}</AssessmentContext.Provider>;

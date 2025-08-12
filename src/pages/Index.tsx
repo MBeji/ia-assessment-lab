@@ -14,13 +14,14 @@ const sizes = ["< 100", "100-500", "500-2000", "> 2000"];
 
 const Index = () => {
   const nav = useNavigate();
-  const { departments, startAssessment } = useAssessment();
+  const { departments, startAssessment, templates, setTemplateId } = useAssessment();
   const [name, setName] = useState("");
   const [sector, setSector] = useState(sectors[0]);
   const [size, setSize] = useState(sizes[0]);
   const [assessorName, setAssessorName] = useState("");
   const [assessorEmail, setAssessorEmail] = useState("");
   const [selected, setSelected] = useState<string[]>(departments.map(d => d.id));
+  const [template, setTemplate] = useState<string>(templates[0]?.id || "");
 
   const allSelected = selected.length === departments.length;
   const toggleAll = () => setSelected(allSelected ? [] : departments.map(d => d.id));
@@ -31,7 +32,8 @@ const Index = () => {
     startAssessment(
       { name, sector, size },
       { name: assessorName || "", email: assessorEmail },
-      selected as any
+      selected as any,
+      template
     );
     nav("/questionnaire");
   };
@@ -71,6 +73,20 @@ const Index = () => {
                     {sizes.map(s => <option key={s} value={s}>{s}</option>)}
                   </select>
                 </div>
+              </div>
+              <div>
+                <Label htmlFor="template">Modèle de questionnaire</Label>
+                <select
+                  id="template"
+                  className="w-full h-10 rounded-md border bg-background"
+                  value={template}
+                  onChange={(e)=>{ setTemplate(e.target.value); setTemplateId(e.target.value); }}
+                >
+                  {templates.map(t => (
+                    <option key={t.id} value={t.id}>{t.name}</option>
+                  ))}
+                </select>
+                <p className="text-xs text-muted-foreground mt-1">{templates.find(t=>t.id===template)?.description}</p>
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
