@@ -11,6 +11,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Badge } from "@/components/ui/badge";
 
 const likert = [0,1,2,3,4,5];
 const labels: Record<number, string> = {
@@ -19,7 +21,7 @@ const labels: Record<number, string> = {
 
 const Questionnaire = () => {
   const nav = useNavigate();
-  const { assessment, categories, questions, updateResponse, responses, answeredRatio, computeScores } = useAssessment();
+  const { assessment, categories, questions, updateResponse, responses, answeredRatio, computeScores, departments } = useAssessment();
   const [activeDept, setActiveDept] = useState(assessment?.selectedDepartments[0]);
   const [step, setStep] = useState(0); // category index
 
@@ -65,6 +67,21 @@ const Questionnaire = () => {
         </div>
       </div>
 
+      {/* Sélecteur synchronisé du département concerné */}
+      <div className="flex items-center gap-3 mb-2">
+        <Label className="text-sm">Départements concernés</Label>
+        <Select value={activeDept} onValueChange={(v)=> setActiveDept(v as any)}>
+          <SelectTrigger className="w-64">
+            <SelectValue placeholder="Choisir un département" />
+          </SelectTrigger>
+          <SelectContent>
+            {assessment.selectedDepartments.map(d => (
+              <SelectItem key={d} value={d}>{departments.find(dd=>dd.id===d)?.name || d}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+
       <Tabs value={activeDept} onValueChange={(v)=>setActiveDept(v as any)} className="space-y-4">
         <TabsList className="flex-wrap">
           {assessment.selectedDepartments.map(d => (
@@ -83,9 +100,18 @@ const Questionnaire = () => {
                   const resp = responses.find(r => r.assessmentId === assessment.id && r.departmentId === d && r.questionId === q.id);
                   const val = resp?.isNA ? null : (resp?.value ?? null);
                   const showEvidence = (val ?? -1) >= q.evidenceRequiredThreshold;
+                  const appliesTo = q.appliesToDepartments.includes('ALL') ? assessment.selectedDepartments : q.appliesToDepartments;
                   return (
                     <div key={q.id} className="space-y-3">
-                      <div className="font-medium">{q.code} — {q.text}</div>
+                      <div className="font-medium flex flex-col gap-1">
+                        <span>{q.code} — {q.text}</span>
+                        <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                          <span>Départements concernés:</span>
+                          {appliesTo.map(ad => (
+                            <Badge key={ad} variant={ad===d ? 'default' : 'secondary'}>{departments.find(dd=>dd.id===ad)?.name || ad}</Badge>
+                          ))}
+                        </div>
+                      </div>
                       <div className="grid grid-cols-7 gap-3 items-end">
                         <RadioGroup className="col-span-6 grid grid-cols-7 gap-2" value={resp?.isNA ? 'NA' : (val?.toString() ?? '')} onValueChange={(v)=>{
                           if (v === 'NA') onSet(q.id, d, null, true);
