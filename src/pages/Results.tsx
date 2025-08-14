@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useMemo, lazy, Suspense } from "react";
 import { useNavigate } from "react-router-dom";
 import { Layout } from "@/components/Layout";
 import { SEO } from "@/components/SEO";
@@ -7,10 +7,11 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { ScoreGauge } from "@/components/charts/ScoreGauge";
-import { RadarByCategory } from "@/components/charts/RadarByCategory";
-import { BarByDepartment } from "@/components/charts/BarByDepartment";
-import { HeatmapQuestions } from "@/components/charts/HeatmapQuestions";
+// Lazy-loaded charts (reduce initial bundle)
+const ScoreGauge = lazy(()=> import('@/components/charts/ScoreGauge').then(m=>({ default: m.ScoreGauge })));
+const RadarByCategory = lazy(()=> import('@/components/charts/RadarByCategory').then(m=>({ default: m.RadarByCategory })));
+const BarByDepartment = lazy(()=> import('@/components/charts/BarByDepartment').then(m=>({ default: m.BarByDepartment })));
+const HeatmapQuestions = lazy(()=> import('@/components/charts/HeatmapQuestions').then(m=>({ default: m.HeatmapQuestions })));
 
 const Results = () => {
   const nav = useNavigate();
@@ -80,7 +81,9 @@ const Results = () => {
             <CardDescription>Niveau: {sc.maturityLevel}</CardDescription>
           </CardHeader>
           <CardContent>
-            <ScoreGauge value={sc.globalScore} label="Global" />
+            <Suspense fallback={<div className="h-64 flex items-center justify-center text-xs text-muted-foreground">Chargement graphique...</div>}>
+              <ScoreGauge value={sc.globalScore} label="Global" />
+            </Suspense>
           </CardContent>
         </Card>
         <Card className="md:col-span-2">
@@ -89,7 +92,9 @@ const Results = () => {
             <CardDescription>Vue 0–100%</CardDescription>
           </CardHeader>
           <CardContent>
-            <RadarByCategory data={radarData} />
+            <Suspense fallback={<div className="h-80 flex items-center justify-center text-xs text-muted-foreground">Chargement radar...</div>}>
+              <RadarByCategory data={radarData} />
+            </Suspense>
           </CardContent>
         </Card>
       </div>
@@ -100,7 +105,9 @@ const Results = () => {
             <CardTitle>Scores par département</CardTitle>
           </CardHeader>
           <CardContent>
-            <BarByDepartment data={barData} />
+            <Suspense fallback={<div className="h-72 flex items-center justify-center text-xs text-muted-foreground">Chargement barres...</div>}>
+              <BarByDepartment data={barData} />
+            </Suspense>
           </CardContent>
         </Card>
         <Card>
@@ -108,7 +115,9 @@ const Results = () => {
             <CardTitle>Questions critiques (≤ 2)</CardTitle>
           </CardHeader>
           <CardContent>
-            <HeatmapQuestions critical={critical} />
+            <Suspense fallback={<div className="text-xs text-muted-foreground">Chargement liste...</div>}>
+              <HeatmapQuestions critical={critical} />
+            </Suspense>
           </CardContent>
         </Card>
       </div>

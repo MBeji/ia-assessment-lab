@@ -14,15 +14,20 @@ import {
   MaturityLevel,
 } from "@/types";
 import { DEPT_DEFAULT_WEIGHTS, SEED_CATEGORIES, SEED_DEPARTMENTS, SEED_QUESTIONS, SEED_RULES } from "@/data/seeds";
+import { upsertAssessment as supaUpsertAssessment, upsertResponses as supaUpsertResponses, listAssessments as supaListAssessments, fetchResponses as supaFetchResponses, saveScorePlan as supaSaveScorePlan } from '@/lib/supabaseStorage';
 import { TEMPLATES } from "@/data/templates";
 
 // Simple UUID fallback if uuid package not present
 function genId() { try { return uuidv4(); } catch { return Math.random().toString(36).slice(2); } }
 
 const STORAGE_KEY = "audit-ia-state-v1";
+const USE_SUPABASE = !!import.meta.env.VITE_SUPABASE_URL && !!import.meta.env.VITE_SUPABASE_ANON_KEY;
 
 interface AssessmentContextValue extends AppStateSnapshot {
   startAssessment: (org: Pick<Organization, "name" | "sector" | "size">, assessor: { name: string; email: string }, selectedDepartments: DepartmentId[], templateId?: string) => void;
+  selectAssessment: (id: string) => void;
+  closeAssessment: (id: string) => void;
+  deleteAssessment: (id: string) => void;
   updateResponse: (payload: Omit<ResponseRow, "id" | "assessmentId"> & { id?: string }) => void;
   computeScores: () => Scorecard;
   generatePlan: (scorecard: Scorecard) => Plan;
@@ -32,16 +37,23 @@ interface AssessmentContextValue extends AppStateSnapshot {
   removeQuestion: (id: string) => void;
   resetAll: () => void;
   answeredRatio: () => number; // 0..1
+  getAssessmentProgress: (id: string) => { answered: number; total: number; ratio: number };
+  getAssessmentScorecard: (id: string) => Scorecard | undefined;
   templates: typeof TEMPLATES;
   setTemplateId: (id: string) => void;
   templateId: string;
   applyTemplate: (id: string, options?: { reset?: boolean }) => void;
+  exportAssessment: (id: string) => void;
+  syncAssessment?: (id: string) => Promise<void>;
+  pullAssessments?: () => Promise<void>;
 }
+import { exportJSON } from "@/lib/export";
 
 const AssessmentContext = createContext<AssessmentContextValue | undefined>(undefined);
 
 export const AssessmentProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [organization, setOrganization] = useState<AppStateSnapshot["organization"]>();
+  const [assessments, setAssessments] = useState<AppStateSnapshot["assessments"]>([]);
   const [assessment, setAssessment] = useState<AppStateSnapshot["assessment"]>();
   const [responses, setResponses] = useState<ResponseRow[]>([]);
   const [categories, setCategories] = useState(SEED_CATEGORIES);
@@ -55,12 +67,13 @@ export const AssessmentProvider: React.FC<{ children: React.ReactNode }> = ({ ch
 
   // Restore from localStorage
   useEffect(() => {
-    const raw = localStorage.getItem(STORAGE_KEY);
+  const raw = localStorage.getItem(STORAGE_KEY);
     if (raw) {
       try {
         const parsed: AppStateSnapshot = JSON.parse(raw);
-        setOrganization(parsed.organization);
-        setAssessment(parsed.assessment);
+  setOrganization(parsed.organization);
+  setAssessments(parsed.assessments || []);
+  setAssessment(parsed.assessment);
         setResponses(parsed.responses || []);
         setScorecard(parsed.scorecard);
         setPlan(parsed.plan);
@@ -77,8 +90,9 @@ export const AssessmentProvider: React.FC<{ children: React.ReactNode }> = ({ ch
   // Persist to localStorage
   useEffect(() => {
     const snapshot: AppStateSnapshot = {
-      organization,
-      assessment,
+  organization,
+  assessments,
+  assessment,
       responses,
       scorecard,
       plan,
@@ -90,7 +104,19 @@ export const AssessmentProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     templateId,
     };
     localStorage.setItem(STORAGE_KEY, JSON.stringify(snapshot));
-  }, [organization, assessment, responses, scorecard, plan, categories, departments, questions, rules, departmentWeights, templateId]);
+  }, [organization, assessments, assessment, responses, scorecard, plan, categories, departments, questions, rules, departmentWeights, templateId]);
+
+  // Initial remote pull if Supabase
+  useEffect(()=>{ if(!USE_SUPABASE) return; (async()=>{ try {
+      const remote = await supaListAssessments();
+      if(remote.length) setAssessments(remote);
+    } catch{} })(); }, []);
+
+  // Periodic background sync every 60s for active assessment
+  useEffect(()=>{
+  const id = setInterval(()=>{ if(assessment && USE_SUPABASE) syncAssessmentInternal(assessment.id); }, 60000);
+    return ()=> clearInterval(id);
+  }, [assessment]);
 
   const relevantQuestionIdsByDept = useMemo(() => {
     const map: Record<DepartmentId, string[]> = {
@@ -118,6 +144,17 @@ export const AssessmentProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     return answered / total;
   };
 
+  const getAssessmentProgress = (id: string) => {
+    const a = assessments.find(a => a.id === id) || (assessment && assessment.id === id ? assessment : undefined);
+    if (!a) return { answered: 0, total: 0, ratio: 0 };
+    const cats = a.categoriesSnapshot || categories;
+    const qs = a.questionsSnapshot || questions;
+    const total = a.selectedDepartments.reduce((acc, d) => acc + qs.filter(q => (q.appliesToDepartments.includes('ALL') || q.appliesToDepartments.includes(d)) ).length, 0);
+    if (!total) return { answered: 0, total: 0, ratio: 0 };
+    const answered = responses.filter(r => r.assessmentId === id && a.selectedDepartments.includes(r.departmentId) && !r.isNA && r.value !== null).length;
+    return { answered, total, ratio: answered / total };
+  };
+
   const startAssessment: AssessmentContextValue["startAssessment"] = (org, assessor, selectedDepartments, selectedTemplateId) => {
     const orgId = genId();
     const now = new Date().toISOString();
@@ -125,16 +162,20 @@ export const AssessmentProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     setOrganization(organization);
     const assessment: Assessment = {
       id: genId(), orgId, assessorName: assessor.name, assessorEmail: assessor.email,
-      selectedDepartments, startedAt: now,
+      selectedDepartments, startedAt: now, updatedAt: now,
     };
     setAssessment(assessment);
+    setAssessments(prev => [assessment, ...prev]);
     // Apply selected template (or keep current if not provided)
     const tpl = TEMPLATES.find(t => t.id === (selectedTemplateId || templateId)) || TEMPLATES[0];
     if (tpl) {
-      setCategories(tpl.categories);
-      setQuestions(tpl.questions);
-      setRules(tpl.rules);
+  setCategories(tpl.categories);
+  setQuestions(tpl.questions);
+  setRules(tpl.rules);
       setTemplateIdState(tpl.id);
+  // snapshot for historical integrity
+  setAssessments(prev => prev.map(a => a.id===assessment.id ? { ...a, templateId: tpl.id, categoriesSnapshot: tpl.categories, questionsSnapshot: tpl.questions, rulesSnapshot: tpl.rules } : a));
+  setAssessment(a => a ? { ...a, templateId: tpl.id } : a);
     }
     // Prefill all relevant question/department pairs with default NA responses
     const prefilled: ResponseRow[] = [];
@@ -157,7 +198,7 @@ export const AssessmentProvider: React.FC<{ children: React.ReactNode }> = ({ ch
 
   const updateResponse: AssessmentContextValue["updateResponse"] = (payload) => {
     if (!assessment) return;
-    setResponses(prev => {
+  setResponses(prev => {
       const existingIdx = prev.findIndex(r => r.assessmentId === assessment.id && r.questionId === payload.questionId && r.departmentId === payload.departmentId);
       const base: ResponseRow = {
         id: payload.id || genId(),
@@ -176,6 +217,9 @@ export const AssessmentProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       }
       return [base, ...prev];
     });
+  // stamp updatedAt
+  setAssessment(a => a ? { ...a, updatedAt: new Date().toISOString() } : a);
+  setAssessments(prev => prev.map(a => a.id===assessment.id ? { ...a, updatedAt: new Date().toISOString() } : a));
   };
 
   function maturityFromScore(score: number): MaturityLevel {
@@ -185,6 +229,52 @@ export const AssessmentProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     if (score <= 80) return "Avancé";
     return "Leader";
   }
+
+  const getAssessmentScorecard = (id: string): Scorecard | undefined => {
+    // If current assessment and score already calculated, reuse
+    if (assessment && assessment.id === id) {
+      try { return scorecard || computeScores(); } catch { return undefined; }
+    }
+    const a = assessments.find(a => a.id === id);
+    if (!a) return undefined;
+    const cats = a.categoriesSnapshot || categories;
+    const qs = a.questionsSnapshot || questions;
+    const selected = a.selectedDepartments;
+    const rs = responses.filter(r => r.assessmentId === id);
+    if (!qs.length || !cats.length) return undefined;
+    const byDeptByCat: Record<DepartmentId, Record<string, number>> = {} as any;
+    const byDeptByCatDen: Record<DepartmentId, Record<string, number>> = {} as any;
+    selected.forEach(d => { byDeptByCat[d] = {}; byDeptByCatDen[d] = {}; cats.forEach(c=>{byDeptByCat[d][c.id]=0; byDeptByCatDen[d][c.id]=0;}); });
+    rs.forEach(r => {
+      if (!selected.includes(r.departmentId)) return;
+      if (r.isNA || r.value === null) return;
+      const q = qs.find(qq => qq.id === r.questionId); if (!q) return;
+      byDeptByCat[r.departmentId][q.categoryId] += (r.value||0) * (q.weight||1);
+      byDeptByCatDen[r.departmentId][q.categoryId] += (q.weight||1);
+    });
+    const categoryScores: Record<string, number> = {};
+    const departmentScores: Record<DepartmentId, number> = {} as any;
+    cats.forEach(cat => {
+      let sumPct=0,count=0; selected.forEach(d=>{ const den=byDeptByCatDen[d][cat.id]; if(den>0){ const avg=byDeptByCat[d][cat.id]/den; sumPct += (avg/5)*100; count++; } });
+      categoryScores[cat.id] = count? sumPct/count : 0;
+    });
+    selected.forEach(d => {
+      let sumPct=0,count=0; cats.forEach(cat=>{ const den=byDeptByCatDen[d][cat.id]; if(den>0){ const avg=byDeptByCat[d][cat.id]/den; sumPct += (avg/5)*100; count++; }});
+      departmentScores[d] = count? sumPct/count : 0;
+    });
+    const aiCoreScore = cats.length ? (Object.values(categoryScores).reduce((a,b)=>a+b,0)/cats.length) : 0;
+    let wSum=0, wx=0; selected.forEach(d => { const w=departmentWeights[d]??1; wSum+=w; wx += (departmentScores[d]||0)*w;});
+    const globalScore = wSum? wx/wSum : 0;
+    return {
+      id: `sc-${id}`,
+      assessmentId: id,
+      categoryScores,
+      departmentScores,
+      aiCoreScore,
+      globalScore,
+      maturityLevel: maturityFromScore(globalScore),
+    };
+  };
 
   const computeScores = (): Scorecard => {
     if (!assessment) throw new Error("Aucune évaluation en cours");
@@ -336,6 +426,60 @@ export const AssessmentProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     setQuestions(tpl.questions);
     setRules(tpl.rules);
     setTemplateIdState(tpl.id);
+    if (assessment) {
+      setAssessments(prev => prev.map(a => a.id===assessment.id ? { ...a, templateId: tpl.id } : a));
+      setAssessment(a => a ? { ...a, templateId: tpl.id } : a);
+    }
+  };
+  const selectAssessment = (id: string) => {
+    const a = assessments.find(a => a.id === id);
+    if (!a) return;
+    setAssessment(a);
+    // restore snapshots if needed
+    if (a.categoriesSnapshot && a.questionsSnapshot) {
+      setCategories(a.categoriesSnapshot);
+      setQuestions(a.questionsSnapshot);
+    }
+    if (a.rulesSnapshot) setRules(a.rulesSnapshot as any);
+    if (a.templateId) setTemplateIdState(a.templateId);
+  };
+
+  const closeAssessment = (id: string) => {
+    setAssessments(prev => prev.map(a => a.id===id ? { ...a, completedAt: new Date().toISOString() } : a));
+    if (assessment?.id === id) setAssessment(a => a ? { ...a, completedAt: new Date().toISOString() } : a);
+    if (USE_SUPABASE) setTimeout(()=> syncAssessmentInternal(id), 400);
+  };
+
+  const exportAssessment = (id: string) => {
+    const a = assessments.find(a => a.id === id) || (assessment && assessment.id === id ? assessment : undefined);
+    if (!a) return;
+    const cats = a.categoriesSnapshot || categories;
+    const qs = a.questionsSnapshot || questions;
+    const rs = responses.filter(r => r.assessmentId === a.id);
+    let sc: Scorecard | undefined = undefined;
+    if (assessment && assessment.id === a.id && scorecard) sc = scorecard;
+    let pl: Plan | undefined = undefined;
+    if (assessment && assessment.id === a.id && plan) pl = plan;
+    const payload = {
+      assessment: a,
+      categories: cats,
+      questions: qs,
+      responses: rs,
+      scorecard: sc,
+      plan: pl,
+      templateId: a.templateId,
+    };
+    exportJSON(payload, `assessment-${a.id.slice(0,6)}.json`);
+  };
+
+  const deleteAssessment = (id: string) => {
+    setAssessments(prev => prev.filter(a => a.id !== id));
+    setResponses(prev => prev.filter(r => r.assessmentId !== id));
+    if (assessment?.id === id) {
+      setAssessment(undefined);
+      setScorecard(undefined);
+      setPlan(undefined);
+    }
   };
 
   const resetAll = () => {
@@ -348,9 +492,20 @@ export const AssessmentProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     // keep seeds as-is
   };
 
+  const syncAssessmentInternal = async (id: string) => {
+    if(!USE_SUPABASE) return;
+    const a = assessments.find(x=>x.id===id) || (assessment?.id===id ? assessment : undefined);
+    if(!a) return;
+    await supaUpsertAssessment(a);
+    const rs = responses.filter(r => r.assessmentId === id);
+    if (rs.length) await supaUpsertResponses(rs);
+    if (scorecard || plan) await supaSaveScorePlan(id, scorecard, plan);
+  };
+
   const value: AssessmentContextValue = {
-    organization,
-    assessment,
+  organization,
+  assessments,
+  assessment,
     responses,
     scorecard,
     plan,
@@ -369,10 +524,18 @@ export const AssessmentProvider: React.FC<{ children: React.ReactNode }> = ({ ch
   removeQuestion,
     resetAll,
     answeredRatio,
+  getAssessmentProgress,
+  getAssessmentScorecard,
   templates: TEMPLATES,
   setTemplateId: (id: string) => setTemplateIdState(id),
   templateId,
   applyTemplate,
+  selectAssessment,
+  closeAssessment,
+  deleteAssessment,
+  exportAssessment,
+  syncAssessment: async (id: string) => { await syncAssessmentInternal(id); },
+  pullAssessments: async () => { if(!USE_SUPABASE) return; const remote = await supaListAssessments(); setAssessments(remote); },
   };
 
   return <AssessmentContext.Provider value={value}>{children}</AssessmentContext.Provider>;

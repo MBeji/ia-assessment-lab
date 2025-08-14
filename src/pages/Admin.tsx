@@ -8,6 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { ImportExport } from "@/components/ImportExport";
+import { exportJSON } from "@/lib/export";
 
 const Admin = () => {
   const { categories, questions, templates, templateId, applyTemplate, addQuestion, updateQuestion, removeQuestion, setDepartmentWeight, departmentWeights, departments } = useAssessment();
@@ -15,6 +16,11 @@ const Admin = () => {
   const [selectedTemplate, setSelectedTemplate] = useState<string>(templateId);
   const template = useMemo(()=> templates.find(t => t.id === selectedTemplate), [templates, selectedTemplate]);
   const templateQuestions = questions; // current questions reflect the applied template plus edits
+  const codeCounts = useMemo(()=>{
+    const m: Record<string, number> = {};
+    questions.forEach(q => { const k = q.code.trim().toLowerCase(); if (!k) return; m[k] = (m[k]||0)+1; });
+    return m;
+  }, [questions]);
 
   const [code, setCode] = useState("");
   const [text, setText] = useState("");
@@ -23,6 +29,8 @@ const Admin = () => {
 
   const onAdd = () => {
     if (!code || !text || !categoryId) return alert('Champs requis manquants');
+    const key = code.trim().toLowerCase();
+    if (codeCounts[key]) return alert('Code déjà utilisé');
     const q = {
       id: `Q-CUSTOM-${Date.now()}`,
       code,
@@ -39,6 +47,19 @@ const Admin = () => {
     addQuestion(q as any);
     setCode(""); setText("");
     alert('Question ajoutée');
+  };
+
+  const onExportModel = () => {
+    const payload = {
+      id: template?.id || templateId,
+      name: template?.name,
+      description: template?.description,
+      assessmentScope: template?.assessmentScope,
+      categories,
+      questions: templateQuestions,
+      rules: [] as any, // (optional: include rules if needed)
+    };
+    exportJSON(payload, `modele-${(template?.id||'custom')}.json`);
   };
 
   return (
@@ -65,6 +86,7 @@ const Admin = () => {
             </div>
             <div className="flex gap-2">
               <Button onClick={()=> applyTemplate(selectedTemplate, { reset: true })}>Appliquer ce modèle</Button>
+              <Button variant="outline" onClick={onExportModel}>Exporter modèle</Button>
             </div>
           </CardContent>
         </Card>
@@ -76,7 +98,8 @@ const Admin = () => {
           <CardContent className="space-y-3">
             <div>
               <Label htmlFor="code">Code</Label>
-              <Input id="code" value={code} onChange={e=>setCode(e.target.value)} placeholder="EX: CUST-01" />
+              <Input id="code" value={code} onChange={e=>setCode(e.target.value)} placeholder="EX: CUST-01" className={code && codeCounts[code.trim().toLowerCase()] ? 'border-destructive' : ''} />
+              {code && codeCounts[code.trim().toLowerCase()] && <p className="text-xs text-destructive mt-1">Code déjà existant</p>}
             </div>
             <div>
               <Label htmlFor="text">Intitulé</Label>
@@ -94,7 +117,7 @@ const Admin = () => {
                 <Input id="weight" type="number" step="0.1" value={weight} onChange={e=>setWeight(Number(e.target.value))} />
               </div>
             </div>
-            <Button onClick={onAdd}>Ajouter</Button>
+            <Button onClick={onAdd} disabled={!!(code && codeCounts[code.trim().toLowerCase()])}>Ajouter</Button>
           </CardContent>
         </Card>
 
@@ -120,11 +143,14 @@ const Admin = () => {
           </CardHeader>
           <CardContent className="space-y-4">
             {templateQuestions.length === 0 && <p className="text-sm text-muted-foreground">Aucune question.</p>}
-            {templateQuestions.map(q => (
-              <div key={q.id} className="border rounded-md p-3 grid md:grid-cols-7 gap-2 items-start">
+            {templateQuestions.map(q => {
+              const dup = codeCounts[q.code.trim().toLowerCase()] > 1;
+              return (
+              <div key={q.id} className={`border rounded-md p-3 grid md:grid-cols-7 gap-2 items-start ${dup ? 'border-destructive' : ''}`}>
                 <div className="md:col-span-2">
                   <Label>Code</Label>
-                  <Input value={q.code} onChange={(e)=> updateQuestion({ id: q.id, code: e.target.value })} />
+                  <Input value={q.code} onChange={(e)=> updateQuestion({ id: q.id, code: e.target.value })} className={dup ? 'border-destructive' : ''} />
+                  {dup && <p className="text-[10px] text-destructive mt-1">Duplication</p>}
                 </div>
                 <div className="md:col-span-3">
                   <Label>Intitulé</Label>
@@ -161,7 +187,7 @@ const Admin = () => {
                   </div>
                 </div>
               </div>
-            ))}
+            );})}
           </CardContent>
         </Card>
       </div>

@@ -14,7 +14,7 @@ const sizes = ["< 100", "100-500", "500-2000", "> 2000"];
 
 const Index = () => {
   const nav = useNavigate();
-  const { departments, startAssessment, templates, setTemplateId } = useAssessment();
+  const { departments, startAssessment, templates, setTemplateId, assessment, assessments, selectAssessment, closeAssessment, deleteAssessment, getAssessmentProgress, exportAssessment } = useAssessment();
   const [name, setName] = useState("");
   const [sector, setSector] = useState(sectors[0]);
   const [size, setSize] = useState(sizes[0]);
@@ -22,6 +22,18 @@ const Index = () => {
   const [assessorEmail, setAssessorEmail] = useState("");
   const [selected, setSelected] = useState<string[]>(departments.map(d => d.id));
   const [template, setTemplate] = useState<string>(templates[0]?.id || "");
+  const [sortMode, setSortMode] = useState<'updated' | 'started' | 'progress'>('updated');
+  const [filterMode, setFilterMode] = useState<'all' | 'open' | 'closed'>('all');
+  const sortedFilteredAssessments = [...(assessments||[])].filter(a => {
+    if (filterMode==='open') return !a.completedAt; if (filterMode==='closed') return !!a.completedAt; return true;
+  }).sort((a,b)=> {
+    if (sortMode==='updated') return (new Date(b.updatedAt||b.startedAt).getTime()) - (new Date(a.updatedAt||a.startedAt).getTime());
+    if (sortMode==='started') return (new Date(b.startedAt).getTime()) - (new Date(a.startedAt).getTime());
+    if (sortMode==='progress') {
+      const pa = getAssessmentProgress(a.id).ratio; const pb = getAssessmentProgress(b.id).ratio; return pb - pa;
+    }
+    return 0;
+  });
 
   const allSelected = selected.length === departments.length;
   const toggleAll = () => setSelected(allSelected ? [] : departments.map(d => d.id));
@@ -38,16 +50,72 @@ const Index = () => {
     nav("/questionnaire");
   };
 
+  const hasOngoing = !!assessment;
+  const progressPct = assessment ? Math.round(getAssessmentProgress(assessment.id).ratio * 100) : 0;
+
   return (
     <Layout>
   <SEO title="SynapFlow – Accueil" description="Auto‑évaluez la maturité IA de votre entreprise par département et générez un plan d’action priorisé." canonical={window.location.origin + "/"} />
-      <section className="grid md:grid-cols-2 gap-8 items-center">
-        <div>
+      <section className="grid md:grid-cols-2 gap-8 items-start">
+        <div className="space-y-6">
           <h1 className="text-4xl md:text-5xl font-bold tracking-tight mb-4">Audit de Maturité IA</h1>
           <p className="text-lg text-muted-foreground mb-6">Évaluez votre maturité IA par département (stratégie, données, MLOps/LLMOps, GenAI, sécurité, conformité, adoption, ROI) et obtenez un plan d’action priorisé.</p>
           <div className="p-4 rounded-xl" style={{ background: 'var(--gradient-hero)', boxShadow: 'var(--shadow-elevated)' }}>
             <p className="text-primary-foreground">Conçu pour ateliers — inspiré NIST AI RMF, ISO/IEC 23894/42001, EU AI Act.</p>
           </div>
+          {assessments && assessments.length > 0 && (
+            <Card className="border-primary/40">
+              <CardHeader>
+                <CardTitle>Évaluations enregistrées</CardTitle>
+                <CardDescription>Reprenez, consultez, exportez ou clôturez.</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-3 text-sm">
+                <div className="flex flex-wrap gap-2 items-center">
+                  <label className="text-xs flex items-center gap-1">Trier
+                    <select className="h-7 text-xs border rounded px-1" value={sortMode} onChange={e=> setSortMode(e.target.value as any)}>
+                      <option value="updated">Dernière mise à jour</option>
+                      <option value="started">Date de début</option>
+                      <option value="progress">Progression</option>
+                    </select>
+                  </label>
+                  <label className="text-xs flex items-center gap-1">Filtre
+                    <select className="h-7 text-xs border rounded px-1" value={filterMode} onChange={e=> setFilterMode(e.target.value as any)}>
+                      <option value="all">Toutes</option>
+                      <option value="open">Ouvertes</option>
+                      <option value="closed">Clôturées</option>
+                    </select>
+                  </label>
+                </div>
+                <div className="space-y-2 max-h-72 overflow-auto pr-1">
+                  {sortedFilteredAssessments.map(a => {
+                    const prog = getAssessmentProgress(a.id);
+                    const pct = Math.round(prog.ratio * 100);
+                    return (
+                      <div key={a.id} className="border rounded p-2 flex flex-col gap-1">
+                        <div className="flex items-center justify-between">
+                          <div className="font-medium text-xs">{a.orgId.slice(0,6)} · {a.templateId || 'modèle'} {a.completedAt && <span className="ml-1 text-[10px] px-1 rounded bg-emerald-600 text-white">Clôturé</span>}</div>
+                          <div className="h-2 w-24 bg-muted rounded overflow-hidden"><div className="h-full bg-primary" style={{width: pct+'%'}} /></div>
+                        </div>
+                        <div className="flex flex-wrap gap-1">
+                          <Button size="sm" variant="secondary" onClick={()=> { selectAssessment(a.id); nav('/questionnaire'); }}>Reprendre</Button>
+                          <Button size="sm" onClick={()=> { selectAssessment(a.id); nav('/resultats'); }}>Résultats</Button>
+                          {!a.completedAt && <Button size="sm" variant="outline" onClick={()=> closeAssessment(a.id)}>Clôturer</Button>}
+                          <Button size="sm" variant="ghost" onClick={()=> exportAssessment(a.id)}>Exporter</Button>
+                          <Button size="sm" variant="destructive" onClick={()=> { if (confirm('Supprimer cette évaluation ?')) deleteAssessment(a.id); }}>Suppr.</Button>
+                        </div>
+                        <div className="text-[10px] text-muted-foreground">Démarré: {new Date(a.startedAt).toLocaleDateString()} · {a.updatedAt ? 'Maj: '+ new Date(a.updatedAt).toLocaleDateString() : ''}</div>
+                      </div>
+                    );
+                  })}
+                </div>
+                <div className="pt-1">
+                  <Button size="sm" variant="outline" onClick={()=> {
+                    if (confirm('Réinitialiser toutes les évaluations ?')) { localStorage.removeItem('audit-ia-state-v1'); window.location.reload(); }
+                  }}>Effacer toutes les évaluations</Button>
+                </div>
+              </CardContent>
+            </Card>
+          )}
         </div>
         <Card>
           <CardHeader>

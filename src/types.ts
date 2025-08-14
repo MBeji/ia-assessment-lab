@@ -53,7 +53,12 @@ export interface Assessment {
   assessorEmail: string;
   selectedDepartments: DepartmentId[];
   startedAt: string;
+  updatedAt?: string; // last modification timestamp
   completedAt?: string;
+  templateId?: string; // template used
+  categoriesSnapshot?: Category[]; // preserve state at creation (for historical integrity)
+  questionsSnapshot?: Question[];
+  rulesSnapshot?: ActionRule[];
 }
 
 export interface ResponseRow {
@@ -124,6 +129,7 @@ export interface QuestionnaireTemplate {
 }
 
 export interface AppStateSnapshot {
+  assessments?: Assessment[]; // historical list of assessments
   organization?: Organization;
   assessment?: Assessment;
   responses: ResponseRow[];

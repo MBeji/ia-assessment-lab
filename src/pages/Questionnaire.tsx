@@ -1,4 +1,5 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
+import { schedulePrefetchCharts } from "@/lib/prefetchCharts";
 import { useNavigate } from "react-router-dom";
 import { Layout } from "@/components/Layout";
 import { SEO } from "@/components/SEO";
@@ -25,6 +26,31 @@ const Questionnaire = () => {
   const [step, setStep] = useState(0); // category index
   const activeTemplate = useMemo(()=> templates.find(t => t.id === templateId), [templates, templateId]);
   const orgLevel = activeTemplate?.assessmentScope === 'organization';
+  const [collapsedCats, setCollapsedCats] = useState<Record<string, boolean>>({});
+  useEffect(()=> { schedulePrefetchCharts(); }, []);
+
+  // Progress per category (current dept or org)
+  const categoryProgress = useMemo(()=>{
+    if (!assessment) return {} as Record<string, number>;
+    const map: Record<string, number> = {};
+    categories.forEach(cat => {
+      const catQuestions = orgLevel ? questions.filter(q=>q.categoryId===cat.id) : questions.filter(q=> q.categoryId===cat.id && (q.appliesToDepartments.includes('ALL') || q.appliesToDepartments.includes(activeDept as any)));
+      const answered = catQuestions.filter(q => {
+        if (orgLevel) {
+          const d = assessment.selectedDepartments[0];
+          const r = responses.find(r=> r.assessmentId===assessment.id && r.questionId===q.id && r.departmentId===d);
+          return r && !r.isNA && r.value !== null;
+        } else {
+          const r = responses.find(r=> r.assessmentId===assessment.id && r.questionId===q.id && r.departmentId===activeDept);
+          return r && !r.isNA && r.value !== null;
+        }
+      }).length;
+      map[cat.id] = catQuestions.length ? answered / catQuestions.length : 0;
+    });
+    return map;
+  }, [assessment, categories, questions, responses, activeDept, orgLevel]);
+
+  const toggleCollapse = (catId: string) => setCollapsedCats(c => ({ ...c, [catId]: !c[catId] }));
 
   const relevantQuestionsByDept = useMemo(() => {
     const map: Record<string, Record<string, typeof questions>> = {};
@@ -59,14 +85,33 @@ const Questionnaire = () => {
   return (
     <Layout>
   <SEO title="SynapFlow – Questionnaire" description="Répondez au questionnaire par département et catégorie." canonical={window.location.origin + "/questionnaire"} />
-      <div className="flex items-center justify-between mb-4">
-        <div>
-          <h1 className="text-2xl font-semibold">Questionnaire</h1>
-          <p className="text-sm text-muted-foreground">Entreprise: {assessment?.orgId?.slice(0,6)} — Départements sélectionnés: {assessment.selectedDepartments.join(', ')}</p>
+      <div className="flex flex-col gap-3 mb-4">
+        <div className="flex items-center justify-between gap-4">
+          <div>
+            <h1 className="text-2xl font-semibold">Questionnaire — {activeTemplate?.name}</h1>
+            <p className="text-xs text-muted-foreground">Scope: {orgLevel ? 'Organisation' : 'Multi-départements'} · Départements: {assessment.selectedDepartments.join(', ')}</p>
+          </div>
+          <div className="flex items-center gap-4">
+            <div className="w-56">
+              <Progress value={Math.round(answeredRatio()*100)} />
+              <p className="text-xs mt-1 text-muted-foreground">Progression globale: {Math.round(answeredRatio()*100)}%</p>
+            </div>
+            <Button variant="outline" size="sm" onClick={()=> nav('/')}>Terminer plus tard</Button>
+          </div>
         </div>
-        <div className="w-56">
-          <Progress value={Math.round(answeredRatio()*100)} />
-          <p className="text-xs mt-1 text-muted-foreground">Progression: {Math.round(answeredRatio()*100)}%</p>
+        <div className="flex gap-2 overflow-x-auto pb-1" role="tablist" aria-label="Catégories">
+          {categories.map((c, idx) => {
+            const pct = Math.round((categoryProgress[c.id] || 0) * 100);
+            return (
+              <button key={c.id} onClick={()=> setStep(idx)} className={`px-3 py-1 rounded border text-xs whitespace-nowrap flex flex-col items-start min-w-[120px] ${step===idx ? 'bg-primary text-primary-foreground' : 'bg-muted/40'}`}> 
+                <span className="font-medium truncate max-w-[100px]">{idx+1}. {c.name}</span>
+                <span className="text-[10px] opacity-80">{pct}%</span>
+                <div className="h-1 w-full bg-border rounded mt-0.5">
+                  <div className="h-full bg-green-500 rounded" style={{width: pct + '%'}} />
+                </div>
+              </button>
+            );
+          })}
         </div>
       </div>
 
@@ -89,10 +134,20 @@ const Questionnaire = () => {
       {orgLevel ? (
         <div className="space-y-4">
           <Card>
-            <CardHeader>
-              <CardTitle>{currentCategory.name}</CardTitle>
-              <CardDescription>{currentCategory.description}</CardDescription>
+            <CardHeader className="flex flex-col gap-2">
+              <div className="flex items-start justify-between">
+                <div>
+                  <CardTitle>{currentCategory.name}</CardTitle>
+                  <CardDescription>{currentCategory.description}</CardDescription>
+                </div>
+                <Button size="sm" variant="ghost" onClick={()=> toggleCollapse(currentCategory.id)}>{collapsedCats[currentCategory.id] ? 'Déplier' : 'Replier'}</Button>
+              </div>
+              <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                <span>Catégorie {step+1}/{categories.length}</span>
+                <span>· Progression {Math.round((categoryProgress[currentCategory.id]||0)*100)}%</span>
+              </div>
             </CardHeader>
+            {!collapsedCats[currentCategory.id] && (
             <CardContent className="space-y-6">
               {currentList.map((q) => {
                   const d = assessment.selectedDepartments[0];
@@ -149,7 +204,7 @@ const Questionnaire = () => {
                     )}
                   </div>
                 </div>
-              </CardContent>
+              </CardContent>) }
             </Card>
         </div>
       ) : (
@@ -162,10 +217,20 @@ const Questionnaire = () => {
           {assessment.selectedDepartments.map(d => (
             <TabsContent key={d} value={d} className="space-y-4">
               <Card>
-                <CardHeader>
-                  <CardTitle>{currentCategory.name}</CardTitle>
-                  <CardDescription>{currentCategory.description}</CardDescription>
+                <CardHeader className="flex flex-col gap-2">
+                  <div className="flex items-start justify-between">
+                    <div>
+                      <CardTitle>{currentCategory.name}</CardTitle>
+                      <CardDescription>{currentCategory.description}</CardDescription>
+                    </div>
+                    <Button size="sm" variant="ghost" onClick={()=> toggleCollapse(currentCategory.id)}>{collapsedCats[currentCategory.id] ? 'Déplier' : 'Replier'}</Button>
+                  </div>
+                  <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                    <span>Catégorie {step+1}/{categories.length}</span>
+                    <span>· Progression {Math.round((categoryProgress[currentCategory.id]||0)*100)}%</span>
+                  </div>
                 </CardHeader>
+                {!collapsedCats[currentCategory.id] && (
                 <CardContent className="space-y-6">
                   {relevantQuestionsByDept[d][currentCategory.id].map((q) => {
                     const resp = responses.find(r => r.assessmentId === assessment.id && r.departmentId === d && r.questionId === q.id);
@@ -221,7 +286,7 @@ const Questionnaire = () => {
                       )}
                     </div>
                   </div>
-                </CardContent>
+                </CardContent>) }
               </Card>
             </TabsContent>
           ))}
