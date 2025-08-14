@@ -15,7 +15,7 @@ const HeatmapQuestions = lazy(()=> import('@/components/charts/HeatmapQuestions'
 
 const Results = () => {
   const nav = useNavigate();
-  const { assessment, categories, departments, responses, computeScores, scorecard, questions, generatePlan, assessments, selectAssessment, getAssessmentScorecard } = useAssessment();
+  const { assessment, categories, departments, responses, computeScores, scorecard, questions, generatePlan, assessments, selectAssessment, getAssessmentScorecard, getAssessmentProgress } = useAssessment();
   const archived = assessments.filter(a => a.completedAt);
   const [summaries, setSummaries] = useState<Record<string,{score:number; maturity:string}>>({});
 
@@ -31,27 +31,78 @@ const Results = () => {
 
   // If no active assessment, still allow browsing archived ones
   // Always show selector bar (even if no current assessment)
+  const [search, setSearch] = useState("");
+  const [filterStatus, setFilterStatus] = useState<'all'|'active'|'archived'>('all');
+  const [sortBy, setSortBy] = useState<'date_desc'|'date_asc'|'score_desc'|'score_asc'>('date_desc');
+
+  const filteredSorted = useMemo(()=> {
+    let list = [...assessments];
+    if(filterStatus==='active') list = list.filter(a=> !a.completedAt);
+    if(filterStatus==='archived') list = list.filter(a=> !!a.completedAt);
+    if(search.trim()) {
+      const q = search.toLowerCase();
+      list = list.filter(a => a.id.toLowerCase().includes(q) || (a.templateId||'').toLowerCase().includes(q));
+    }
+    list.sort((a,b)=>{
+      if(sortBy.startsWith('date')) {
+        const da = a.startedAt || a.updatedAt || '';
+        const db = b.startedAt || b.updatedAt || '';
+        return sortBy==='date_desc' ? (db.localeCompare(da)) : (da.localeCompare(db));
+      } else {
+        const sa = summaries[a.id]?.score ?? -1;
+        const sb = summaries[b.id]?.score ?? -1;
+        if(sortBy==='score_desc') return (sb-sa);
+        return (sa-sb);
+      }
+    });
+    return list;
+  }, [assessments, filterStatus, search, sortBy, summaries]);
+
   const selectorBar = (
-    <div className="mb-4 flex flex-col gap-2">
+    <div className="mb-4 flex flex-col gap-3">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-semibold">Résultats</h1>
       </div>
       <div className="flex flex-wrap gap-3 items-center">
         <label className="text-xs font-medium uppercase text-muted-foreground">Mission</label>
         <select
-          className="h-8 rounded border bg-background px-2 text-sm"
+          className="h-8 rounded border bg-background px-2 text-sm min-w-[260px]"
           value={assessment?.id || ''}
           onChange={e => { if(e.target.value) selectAssessment(e.target.value); }}
         >
-          <option value="" disabled>{assessments.length? 'Sélectionner...' : 'Aucune mission'}</option>
-          {assessments.map(a => {
+          <option value="" disabled>{filteredSorted.length? 'Sélectionner...' : 'Aucune mission'}</option>
+          {filteredSorted.map(a => {
             const s = summaries[a.id];
-            const label = `${a.id.slice(0,6)}${a.completedAt? ' • Archivé':''}${s? ' • '+Math.round(s.score)+'% '+s.maturity:''}`;
+            const prog = getAssessmentProgress(a.id);
+            const pct = prog.ratio? Math.round(prog.ratio*100):0;
+            const date = a.startedAt ? new Date(a.startedAt).toLocaleDateString() : '';
+            const label = `${a.id.slice(0,6)} • ${date}${a.completedAt? ' • Archivé':' • Actif'}${s? ' • '+Math.round(s.score)+'% '+s.maturity:''} • P${pct}%`;
             return <option key={a.id} value={a.id}>{label}</option>;
           })}
         </select>
         {assessment && assessment.completedAt && <Badge variant="outline">Archivée</Badge>}
         {assessment && !assessment.completedAt && <Badge variant="secondary">Active</Badge>}
+        <div className="flex items-center gap-2 text-xs">
+          <span className="text-muted-foreground">Filtre</span>
+          <select className="h-7 rounded border bg-background px-1" value={filterStatus} onChange={e=> setFilterStatus(e.target.value as any)}>
+            <option value="all">Toutes</option>
+            <option value="active">Actives</option>
+            <option value="archived">Archivées</option>
+          </select>
+          <span className="text-muted-foreground">Tri</span>
+          <select className="h-7 rounded border bg-background px-1" value={sortBy} onChange={e=> setSortBy(e.target.value as any)}>
+            <option value="date_desc">Date ↓</option>
+            <option value="date_asc">Date ↑</option>
+            <option value="score_desc">Score ↓</option>
+            <option value="score_asc">Score ↑</option>
+          </select>
+          <input
+            placeholder="Recherche id / modèle"
+            className="h-7 rounded border bg-background px-2 text-xs w-44"
+            value={search}
+            onChange={e=> setSearch(e.target.value)}
+          />
+        </div>
       </div>
     </div>
   );
