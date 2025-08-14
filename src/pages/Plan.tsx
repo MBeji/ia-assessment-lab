@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
 import { Layout } from "@/components/Layout";
 import { SEO } from "@/components/SEO";
 import { useAssessment } from "@/context/AssessmentContext";
@@ -12,34 +12,36 @@ const impactRank = { H: 3, M: 2, L: 1 } as const;
 const effortRank = { L: 1, M: 2, H: 3 } as const;
 
 const Plan = () => {
-  const { plan, scorecard, computeScores, generatePlan, assessment, responses, questions, assessments, selectAssessment } = useAssessment();
-  const archived = assessments.filter(a => a.completedAt);
-  const [showArchivePicker, setShowArchivePicker] = useState(false);
+  const { plan, scorecard, computeScores, generatePlan, assessment, responses, questions, assessments, selectAssessment, getAssessmentScorecard } = useAssessment();
+  const [summaries, setSummaries] = useState<Record<string,{score:number; maturity:string}>>({});
+  useEffect(()=>{
+    const map: Record<string,{score:number; maturity:string}> = {};
+    assessments.forEach(a=>{ const sc = getAssessmentScorecard(a.id); if(sc) map[a.id] = { score: sc.globalScore, maturity: sc.maturityLevel }; });
+    setSummaries(map);
+  }, [assessments, getAssessmentScorecard]);
+  const selectorBar = (
+    <div className="mb-4 flex flex-col gap-2">
+      <div className="flex items-center justify-between">
+        <h1 className="text-2xl font-semibold">Plan d’action</h1>
+        <ImportExport />
+      </div>
+      <div className="flex flex-wrap gap-3 items-center">
+        <label className="text-xs font-medium uppercase text-muted-foreground">Mission</label>
+        <select className="h-8 rounded border bg-background px-2 text-sm" value={assessment?.id || ''} onChange={e=> { if(e.target.value) selectAssessment(e.target.value); }}>
+          <option value="" disabled>{assessments.length? 'Sélectionner...' : 'Aucune mission'}</option>
+          {assessments.map(a => { const s = summaries[a.id]; const label = `${a.id.slice(0,6)}${a.completedAt? ' • Archivé':''}${s? ' • '+Math.round(s.score)+'% '+s.maturity:''}`; return <option key={a.id} value={a.id}>{label}</option>; })}
+        </select>
+        {assessment && assessment.completedAt && <Badge variant="outline">Archivée</Badge>}
+        {assessment && !assessment.completedAt && <Badge variant="secondary">Active</Badge>}
+      </div>
+    </div>
+  );
   if (!assessment) {
     return (
       <Layout>
         <SEO title="SynapFlow – Plan d’action" description="Plan d’action priorisé" canonical={window.location.origin + "/plan"} />
-        <div className="flex items-center justify-between mb-4">
-          <h1 className="text-2xl font-semibold">Plan d’action</h1>
-          {archived.length > 0 && (
-            <div className="relative">
-              <Button variant="outline" size="sm" onClick={()=> setShowArchivePicker(s=>!s)}>Missions archivées</Button>
-              {showArchivePicker && (
-                <div className="absolute z-20 mt-1 w-64 max-h-72 overflow-auto border bg-background rounded shadow">
-                  <div className="p-2 text-xs font-medium border-b">Sélectionner une mission</div>
-                  {archived.map(a => (
-                    <button key={a.id} className="w-full text-left px-2 py-1 hover:bg-muted text-xs" onClick={()=> { selectAssessment(a.id); setShowArchivePicker(false); }}>
-                      {a.id.slice(0,6)} · {a.templateId || 'modèle'}
-                      <span className="block text-[10px] text-muted-foreground">Clôturé {a.completedAt ? new Date(a.completedAt).toLocaleDateString() : ''}</span>
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
-          )}
-        </div>
-        {archived.length === 0 && <p className="text-sm text-muted-foreground">Aucune mission archivée pour l’instant.</p>}
-        {archived.length > 0 && <p className="text-sm text-muted-foreground">Sélectionnez une mission archivée pour afficher son plan d’action.</p>}
+        {selectorBar}
+        <p className="text-sm text-muted-foreground">Choisissez une mission pour afficher le plan d’action.</p>
       </Layout>
     );
   }
@@ -63,28 +65,7 @@ const Plan = () => {
   return (
     <Layout>
   <SEO title="SynapFlow – Plan d’action" description="Plan d’action priorisé par horizon avec quick wins." canonical={window.location.origin + "/plan"} />
-      <div className="flex items-center justify-between mb-4">
-        <div className="flex items-center gap-3">
-          <h1 className="text-2xl font-semibold">Plan d’action priorisé</h1>
-          {archived.length > 0 && (
-            <div className="relative">
-              <Button variant="outline" size="sm" onClick={()=> setShowArchivePicker(s=>!s)}>Missions archivées</Button>
-              {showArchivePicker && (
-                <div className="absolute z-20 mt-1 w-64 max-h-72 overflow-auto border bg-background rounded shadow">
-                  <div className="p-2 text-xs font-medium border-b">Sélectionner une mission</div>
-                  {archived.map(a => (
-                    <button key={a.id} className="w-full text-left px-2 py-1 hover:bg-muted text-xs" onClick={()=> { selectAssessment(a.id); setShowArchivePicker(false); }}>
-                      {a.id.slice(0,6)} · {a.templateId || 'modèle'}
-                      <span className="block text-[10px] text-muted-foreground">Clôturé {new Date(a.completedAt!).toLocaleDateString()}</span>
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
-          )}
-        </div>
-        <ImportExport />
-      </div>
+  {selectorBar}
       {remaining > 0 && (
         <div className="mb-4 flex items-center justify-between">
           <Alert>

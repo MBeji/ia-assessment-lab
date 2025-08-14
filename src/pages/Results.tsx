@@ -17,50 +17,50 @@ const Results = () => {
   const nav = useNavigate();
   const { assessment, categories, departments, responses, computeScores, scorecard, questions, generatePlan, assessments, selectAssessment, getAssessmentScorecard } = useAssessment();
   const archived = assessments.filter(a => a.completedAt);
-  const [showArchivePicker, setShowArchivePicker] = useState(false);
   const [summaries, setSummaries] = useState<Record<string,{score:number; maturity:string}>>({});
 
-  // When opening picker, compute summaries (global score + maturity) for archived missions
+  // Precompute summaries for all assessments once (lightweight) when component mounts or assessments change
   useEffect(()=>{
-    if(!showArchivePicker) return;
     const map: Record<string,{score:number; maturity:string}> = {};
-    archived.forEach(a => {
+    assessments.forEach(a => {
       const sc = getAssessmentScorecard(a.id);
       if(sc) map[a.id] = { score: sc.globalScore, maturity: sc.maturityLevel };
     });
     setSummaries(map);
-  }, [showArchivePicker, archived, getAssessmentScorecard]);
+  }, [assessments, getAssessmentScorecard]);
 
   // If no active assessment, still allow browsing archived ones
+  // Always show selector bar (even if no current assessment)
+  const selectorBar = (
+    <div className="mb-4 flex flex-col gap-2">
+      <div className="flex items-center justify-between">
+        <h1 className="text-2xl font-semibold">Résultats</h1>
+      </div>
+      <div className="flex flex-wrap gap-3 items-center">
+        <label className="text-xs font-medium uppercase text-muted-foreground">Mission</label>
+        <select
+          className="h-8 rounded border bg-background px-2 text-sm"
+          value={assessment?.id || ''}
+          onChange={e => { if(e.target.value) selectAssessment(e.target.value); }}
+        >
+          <option value="" disabled>{assessments.length? 'Sélectionner...' : 'Aucune mission'}</option>
+          {assessments.map(a => {
+            const s = summaries[a.id];
+            const label = `${a.id.slice(0,6)}${a.completedAt? ' • Archivé':''}${s? ' • '+Math.round(s.score)+'% '+s.maturity:''}`;
+            return <option key={a.id} value={a.id}>{label}</option>;
+          })}
+        </select>
+        {assessment && assessment.completedAt && <Badge variant="outline">Archivée</Badge>}
+        {assessment && !assessment.completedAt && <Badge variant="secondary">Active</Badge>}
+      </div>
+    </div>
+  );
   if (!assessment) {
-    const scUndefined: any = undefined;
     return (
       <Layout>
         <SEO title="SynapFlow – Résultats" description="Scores par catégorie et département." canonical={window.location.origin + "/resultats"} />
-        <div className="mb-4 flex items-center justify-between">
-          <h1 className="text-2xl font-semibold">Résultats</h1>
-          {archived.length > 0 && (
-            <div className="relative">
-              <Button variant="outline" size="sm" onClick={()=> setShowArchivePicker(s=>!s)}>Missions archivées</Button>
-              {showArchivePicker && (
-                <div className="absolute z-20 mt-1 w-64 max-h-72 overflow-auto border bg-background rounded shadow">
-                  <div className="p-2 text-xs font-medium border-b">Sélectionner une mission</div>
-                  {archived.map(a => {
-                    const s = summaries[a.id];
-                    return (
-                      <button key={a.id} className="w-full text-left px-2 py-1 hover:bg-muted text-xs" onClick={()=> { selectAssessment(a.id); setShowArchivePicker(false); }}>
-                        {a.id.slice(0,6)} · {a.templateId || 'modèle'}{s && <> · {Math.round(s.score)}% {s.maturity}</>}
-                        <span className="block text-[10px] text-muted-foreground">Clôturé {a.completedAt ? new Date(a.completedAt).toLocaleDateString() : ''}</span>
-                      </button>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
-          )}
-        </div>
-        {archived.length === 0 && <p className="text-sm text-muted-foreground">Aucune mission archivée pour l’instant.</p>}
-        {archived.length > 0 && <p className="text-sm text-muted-foreground">Sélectionnez une mission archivée pour afficher ses résultats.</p>}
+        {selectorBar}
+        <p className="text-sm text-muted-foreground">Choisissez une mission pour afficher les résultats.</p>
       </Layout>
     );
   }
@@ -101,29 +101,10 @@ const Results = () => {
   return (
     <Layout>
   <SEO title="SynapFlow – Résultats" description="Scores par catégorie et département, forces/faiblesses." canonical={window.location.origin + "/resultats"} />
-      <div className="flex items-center justify-between mb-4">
-        <div className="flex items-center gap-2">
-          {archived.length > 0 && (
-            <div className="relative">
-              <Button variant="outline" size="sm" onClick={()=> setShowArchivePicker(s=>!s)}>Missions archivées</Button>
-              {showArchivePicker && (
-                <div className="absolute z-20 mt-1 w-64 max-h-72 overflow-auto border bg-background rounded shadow">
-                  <div className="p-2 text-xs font-medium border-b">Sélectionner une mission</div>
-                  {archived.map(a => { const s = summaries[a.id]; return (
-                    <button key={a.id} className="w-full text-left px-2 py-1 hover:bg-muted text-xs" onClick={()=> { selectAssessment(a.id); setShowArchivePicker(false); }}>
-                      {a.id.slice(0,6)} · {a.templateId || 'modèle'}{s && <> · {Math.round(s.score)}% {s.maturity}</>}
-                      <span className="block text-[10px] text-muted-foreground">Clôturé {new Date(a.completedAt!).toLocaleDateString()}</span>
-                    </button>
-                  ); })}
-                </div>
-              )}
-            </div>
-          )}
-        </div>
-        {remaining > 0 && (
-          <Badge variant="secondary">Questions restantes: {remaining}</Badge>
-        )}
-      </div>
+      {selectorBar}
+      {remaining > 0 && (
+        <div className="mb-4 flex justify-end"><Badge variant="secondary">Questions restantes: {remaining}</Badge></div>
+      )}
 
       {lowCoverage.length > 0 && (
         <div className="mb-4">
