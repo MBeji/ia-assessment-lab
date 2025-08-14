@@ -115,6 +115,8 @@ const Results = () => {
       </Layout>
     );
   }
+  // Force a compute after selection if none yet
+  useEffect(()=>{ if(assessment && !scorecard) { try { computeScores(); } catch{} } }, [assessment?.id, scorecard, computeScores]);
   // Recompute scores when switching assessments if needed
   const sc = scorecard || (()=>{ try { return computeScores(); } catch { return undefined; } })();
   const hasValidScorecard = !!sc && Object.keys(sc.categoryScores||{}).length>0;

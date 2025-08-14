@@ -86,8 +86,10 @@ const Plan = () => {
       </Layout>
     );
   }
+  useEffect(()=>{ if(assessment && !scorecard){ try { computeScores(); } catch{} } }, [assessment?.id, scorecard, computeScores]);
   const sc = scorecard || (()=>{ try { return computeScores(); } catch { return undefined; } })();
   const p = (plan && plan.assessmentId===assessment.id) ? plan : (sc ? generatePlan(sc) : undefined);
+  useEffect(()=>{ if(sc && (!plan || plan.assessmentId!==assessment.id)) { try { generatePlan(sc); } catch{} } }, [sc?.assessmentId, plan?.assessmentId, assessment?.id]);
 
   const groups = useMemo(() => {
     const g: Record<string, typeof p.items> = { '0-90j': [], '3-6m': [], '6-12m': [] } as any;
