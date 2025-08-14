@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { SEO } from "@/components/SEO";
 import { Layout } from "@/components/Layout";
@@ -14,7 +14,7 @@ const sizes = ["< 100", "100-500", "500-2000", "> 2000"];
 
 const Index = () => {
   const nav = useNavigate();
-  const { departments, startAssessment, templates, setTemplateId, assessment, assessments, selectAssessment, closeAssessment, deleteAssessment, getAssessmentProgress, exportAssessment } = useAssessment();
+  const { departments, startAssessment, templates, setTemplateId, assessment, assessments, selectAssessment, closeAssessment, deleteAssessment, getAssessmentProgress, exportAssessment, categories } = useAssessment();
   const [name, setName] = useState("");
   const [sector, setSector] = useState(sectors[0]);
   const [size, setSize] = useState(sizes[0]);
@@ -22,6 +22,8 @@ const Index = () => {
   const [assessorEmail, setAssessorEmail] = useState("");
   const [selected, setSelected] = useState<string[]>(departments.map(d => d.id));
   const [template, setTemplate] = useState<string>(templates[0]?.id || "");
+  const activeTemplate = useMemo(()=> templates.find(t => t.id === template), [templates, template]);
+  const orgLevel = activeTemplate?.assessmentScope === 'organization';
   const [sortMode, setSortMode] = useState<'updated' | 'started' | 'progress'>('updated');
   const [filterMode, setFilterMode] = useState<'all' | 'open' | 'closed'>('all');
   const sortedFilteredAssessments = [...(assessments||[])].filter(a => {
@@ -38,13 +40,22 @@ const Index = () => {
   const allSelected = selected.length === departments.length;
   const toggleAll = () => setSelected(allSelected ? [] : departments.map(d => d.id));
 
+  // (3) Nettoyage : si on passe en mode organisation, on force un seul département placeholder.
+  useEffect(()=> {
+    if (orgLevel) {
+      if (selected.length !== 1) setSelected([departments[0]?.id]);
+    }
+  }, [orgLevel, selected.length, departments]);
+
   const onStart = () => {
     if (!name.trim()) return alert("Veuillez renseigner le nom de l’entreprise.");
     if (!assessorEmail.includes("@")) return alert("Veuillez renseigner un email valide.");
+    // For organization-level template we only pass one department (placeholder) so downstream logic stores responses once
+    const deptIds = orgLevel ? [selected[0]] : selected;
     startAssessment(
       { name, sector, size },
       { name: assessorName || "", email: assessorEmail },
-      selected as any,
+      deptIds as any,
       template
     );
     nav("/questionnaire");
@@ -120,7 +131,7 @@ const Index = () => {
         <Card>
           <CardHeader>
             <CardTitle>Lancer une évaluation</CardTitle>
-            <CardDescription>Renseignez l’entreprise, les départements et vos coordonnées.</CardDescription>
+            <CardDescription>Renseignez l’entreprise, le modèle et vos coordonnées{orgLevel ? '' : ', puis choisissez les départements'}.</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="grid grid-cols-1 gap-3">
@@ -155,6 +166,11 @@ const Index = () => {
                   ))}
                 </select>
                 <p className="text-xs text-muted-foreground mt-1">{templates.find(t=>t.id===template)?.description}</p>
+                {/* (1) Label explicite du mode */}
+                <div className="mt-2 flex items-center gap-2 text-[11px]">
+                  <span className={`px-2 py-0.5 rounded border ${orgLevel ? 'bg-indigo-600 text-white border-indigo-600' : 'bg-emerald-600 text-white border-emerald-600'}`}>{orgLevel ? 'Mode Organisation' : 'Mode Multi‑départements'}</span>
+                  <span className="text-muted-foreground">{orgLevel ? 'Une seule série de réponses' : 'Comparaison entre plusieurs départements'}</span>
+                </div>
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
@@ -166,20 +182,33 @@ const Index = () => {
                   <Input id="assessorEmail" value={assessorEmail} onChange={e=>setAssessorEmail(e.target.value)} placeholder="email@entreprise.com" />
                 </div>
               </div>
-              <div className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <Label>Départements concernés</Label>
-                  <button className="text-sm underline" onClick={toggleAll}>{allSelected ? "Tout désélectionner" : "Tout sélectionner"}</button>
+              {orgLevel ? (
+                <div className="space-y-2">
+                  <Label>Thèmes couverts</Label>
+                  <div className="flex flex-wrap gap-2">
+                    {categories.slice(0,8).map(c => (
+                      <span key={c.id} className="text-[11px] px-2 py-1 rounded bg-muted border">{c.name}</span>
+                    ))}
+                    {categories.length > 8 && <span className="text-[11px] text-muted-foreground">+{categories.length-8} autres</span>}
+                  </div>
+                  <p className="text-xs text-muted-foreground">Modèle organisationnel : une seule série de réponses pour l’ensemble de l’entreprise.</p>
                 </div>
-                <div className="grid grid-cols-2 gap-2">
-                  {departments.map(d => (
-                    <label key={d.id} className="flex items-center gap-2 text-sm">
-                      <Checkbox checked={selected.includes(d.id)} onCheckedChange={(v)=> setSelected(prev => v ? Array.from(new Set([...prev, d.id])) : prev.filter(x=>x!==d.id))} />
-                      <span>{d.name}</span>
-                    </label>
-                  ))}
+              ) : (
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <Label>Départements concernés</Label>
+                    <button className="text-sm underline" onClick={toggleAll}>{allSelected ? "Tout désélectionner" : "Tout sélectionner"}</button>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    {departments.map(d => (
+                      <label key={d.id} className="flex items-center gap-2 text-sm">
+                        <Checkbox checked={selected.includes(d.id)} onCheckedChange={(v)=> setSelected(prev => v ? Array.from(new Set([...prev, d.id])) : prev.filter(x=>x!==d.id))} />
+                        <span>{d.name}</span>
+                      </label>
+                    ))}
+                  </div>
                 </div>
-              </div>
+              )}
               <div className="pt-2">
                 <Button onClick={onStart} variant="hero" className="w-full">Commencer l’évaluation</Button>
               </div>

@@ -46,6 +46,7 @@ interface AssessmentContextValue extends AppStateSnapshot {
   exportAssessment: (id: string) => void;
   syncAssessment?: (id: string) => Promise<void>;
   pullAssessments?: () => Promise<void>;
+  syncState?: { status: 'idle' | 'saving'; lastSyncAt?: string };
 }
 import { exportJSON } from "@/lib/export";
 
@@ -64,6 +65,8 @@ export const AssessmentProvider: React.FC<{ children: React.ReactNode }> = ({ ch
   const [scorecard, setScorecard] = useState<Scorecard | undefined>();
   const [plan, setPlan] = useState<Plan | undefined>();
   const [templateId, setTemplateIdState] = useState<string>(TEMPLATES[0]?.id || "");
+  const [syncState, setSyncState] = useState<{ status: 'idle' | 'saving'; lastSyncAt?: string }>({ status: 'idle' });
+  const syncDebounceRef = React.useRef<any>();
 
   // Restore from localStorage
   useEffect(() => {
@@ -217,6 +220,12 @@ export const AssessmentProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       }
       return [base, ...prev];
     });
+  // trigger debounced cloud sync if enabled
+  if (USE_SUPABASE) {
+    setSyncState(s => ({ ...s, status: 'saving' }));
+    if (syncDebounceRef.current) clearTimeout(syncDebounceRef.current);
+    syncDebounceRef.current = setTimeout(()=> { if (assessment) syncAssessmentInternal(assessment.id); }, 1200);
+  }
   // stamp updatedAt
   setAssessment(a => a ? { ...a, updatedAt: new Date().toISOString() } : a);
   setAssessments(prev => prev.map(a => a.id===assessment.id ? { ...a, updatedAt: new Date().toISOString() } : a));
@@ -496,10 +505,12 @@ export const AssessmentProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     if(!USE_SUPABASE) return;
     const a = assessments.find(x=>x.id===id) || (assessment?.id===id ? assessment : undefined);
     if(!a) return;
+    setSyncState(s => ({ ...s, status: 'saving' }));
     await supaUpsertAssessment(a);
     const rs = responses.filter(r => r.assessmentId === id);
     if (rs.length) await supaUpsertResponses(rs);
     if (scorecard || plan) await supaSaveScorePlan(id, scorecard, plan);
+    setSyncState({ status: 'idle', lastSyncAt: new Date().toISOString() });
   };
 
   const value: AssessmentContextValue = {
@@ -536,6 +547,7 @@ export const AssessmentProvider: React.FC<{ children: React.ReactNode }> = ({ ch
   exportAssessment,
   syncAssessment: async (id: string) => { await syncAssessmentInternal(id); },
   pullAssessments: async () => { if(!USE_SUPABASE) return; const remote = await supaListAssessments(); setAssessments(remote); },
+  syncState,
   };
 
   return <AssessmentContext.Provider value={value}>{children}</AssessmentContext.Provider>;
