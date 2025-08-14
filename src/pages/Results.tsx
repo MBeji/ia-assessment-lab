@@ -19,7 +19,36 @@ const Results = () => {
   const archived = assessments.filter(a => a.completedAt);
   const [showArchivePicker, setShowArchivePicker] = useState(false);
 
-  if (!assessment) return <Layout><p>Veuillez démarrer une évaluation.</p></Layout>;
+  // If no active assessment, still allow browsing archived ones
+  if (!assessment) {
+    const scUndefined: any = undefined;
+    return (
+      <Layout>
+        <SEO title="SynapFlow – Résultats" description="Scores par catégorie et département." canonical={window.location.origin + "/resultats"} />
+        <div className="mb-4 flex items-center justify-between">
+          <h1 className="text-2xl font-semibold">Résultats</h1>
+          {archived.length > 0 && (
+            <div className="relative">
+              <Button variant="outline" size="sm" onClick={()=> setShowArchivePicker(s=>!s)}>Missions archivées</Button>
+              {showArchivePicker && (
+                <div className="absolute z-20 mt-1 w-64 max-h-72 overflow-auto border bg-background rounded shadow">
+                  <div className="p-2 text-xs font-medium border-b">Sélectionner une mission</div>
+                  {archived.map(a => (
+                    <button key={a.id} className="w-full text-left px-2 py-1 hover:bg-muted text-xs" onClick={()=> { selectAssessment(a.id); setShowArchivePicker(false); }}>
+                      {a.id.slice(0,6)} · {a.templateId || 'modèle'}
+                      <span className="block text-[10px] text-muted-foreground">Clôturé {a.completedAt ? new Date(a.completedAt).toLocaleDateString() : ''}</span>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+        {archived.length === 0 && <p className="text-sm text-muted-foreground">Aucune mission archivée pour l’instant.</p>}
+        {archived.length > 0 && <p className="text-sm text-muted-foreground">Sélectionnez une mission archivée pour afficher ses résultats.</p>}
+      </Layout>
+    );
+  }
   const sc = scorecard || computeScores();
 
   const radarData = categories.map(c => ({ category: c.name, score: sc.categoryScores[c.id] || 0 }));

@@ -15,6 +15,34 @@ const Plan = () => {
   const { plan, scorecard, computeScores, generatePlan, assessment, responses, questions, assessments, selectAssessment } = useAssessment();
   const archived = assessments.filter(a => a.completedAt);
   const [showArchivePicker, setShowArchivePicker] = useState(false);
+  if (!assessment) {
+    return (
+      <Layout>
+        <SEO title="SynapFlow – Plan d’action" description="Plan d’action priorisé" canonical={window.location.origin + "/plan"} />
+        <div className="flex items-center justify-between mb-4">
+          <h1 className="text-2xl font-semibold">Plan d’action</h1>
+          {archived.length > 0 && (
+            <div className="relative">
+              <Button variant="outline" size="sm" onClick={()=> setShowArchivePicker(s=>!s)}>Missions archivées</Button>
+              {showArchivePicker && (
+                <div className="absolute z-20 mt-1 w-64 max-h-72 overflow-auto border bg-background rounded shadow">
+                  <div className="p-2 text-xs font-medium border-b">Sélectionner une mission</div>
+                  {archived.map(a => (
+                    <button key={a.id} className="w-full text-left px-2 py-1 hover:bg-muted text-xs" onClick={()=> { selectAssessment(a.id); setShowArchivePicker(false); }}>
+                      {a.id.slice(0,6)} · {a.templateId || 'modèle'}
+                      <span className="block text-[10px] text-muted-foreground">Clôturé {a.completedAt ? new Date(a.completedAt).toLocaleDateString() : ''}</span>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+        {archived.length === 0 && <p className="text-sm text-muted-foreground">Aucune mission archivée pour l’instant.</p>}
+        {archived.length > 0 && <p className="text-sm text-muted-foreground">Sélectionnez une mission archivée pour afficher son plan d’action.</p>}
+      </Layout>
+    );
+  }
   const sc = scorecard || computeScores();
   const p = plan || generatePlan(sc);
 
