@@ -1,4 +1,4 @@
-import { useMemo, lazy, Suspense, useState } from "react";
+import { useMemo, lazy, Suspense, useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Layout } from "@/components/Layout";
 import { SEO } from "@/components/SEO";
@@ -15,9 +15,21 @@ const HeatmapQuestions = lazy(()=> import('@/components/charts/HeatmapQuestions'
 
 const Results = () => {
   const nav = useNavigate();
-  const { assessment, categories, departments, responses, computeScores, scorecard, questions, generatePlan, assessments, selectAssessment } = useAssessment();
+  const { assessment, categories, departments, responses, computeScores, scorecard, questions, generatePlan, assessments, selectAssessment, getAssessmentScorecard } = useAssessment();
   const archived = assessments.filter(a => a.completedAt);
   const [showArchivePicker, setShowArchivePicker] = useState(false);
+  const [summaries, setSummaries] = useState<Record<string,{score:number; maturity:string}>>({});
+
+  // When opening picker, compute summaries (global score + maturity) for archived missions
+  useEffect(()=>{
+    if(!showArchivePicker) return;
+    const map: Record<string,{score:number; maturity:string}> = {};
+    archived.forEach(a => {
+      const sc = getAssessmentScorecard(a.id);
+      if(sc) map[a.id] = { score: sc.globalScore, maturity: sc.maturityLevel };
+    });
+    setSummaries(map);
+  }, [showArchivePicker, archived, getAssessmentScorecard]);
 
   // If no active assessment, still allow browsing archived ones
   if (!assessment) {
@@ -33,12 +45,15 @@ const Results = () => {
               {showArchivePicker && (
                 <div className="absolute z-20 mt-1 w-64 max-h-72 overflow-auto border bg-background rounded shadow">
                   <div className="p-2 text-xs font-medium border-b">Sélectionner une mission</div>
-                  {archived.map(a => (
-                    <button key={a.id} className="w-full text-left px-2 py-1 hover:bg-muted text-xs" onClick={()=> { selectAssessment(a.id); setShowArchivePicker(false); }}>
-                      {a.id.slice(0,6)} · {a.templateId || 'modèle'}
-                      <span className="block text-[10px] text-muted-foreground">Clôturé {a.completedAt ? new Date(a.completedAt).toLocaleDateString() : ''}</span>
-                    </button>
-                  ))}
+                  {archived.map(a => {
+                    const s = summaries[a.id];
+                    return (
+                      <button key={a.id} className="w-full text-left px-2 py-1 hover:bg-muted text-xs" onClick={()=> { selectAssessment(a.id); setShowArchivePicker(false); }}>
+                        {a.id.slice(0,6)} · {a.templateId || 'modèle'}{s && <> · {Math.round(s.score)}% {s.maturity}</>}
+                        <span className="block text-[10px] text-muted-foreground">Clôturé {a.completedAt ? new Date(a.completedAt).toLocaleDateString() : ''}</span>
+                      </button>
+                    );
+                  })}
                 </div>
               )}
             </div>
@@ -94,12 +109,12 @@ const Results = () => {
               {showArchivePicker && (
                 <div className="absolute z-20 mt-1 w-64 max-h-72 overflow-auto border bg-background rounded shadow">
                   <div className="p-2 text-xs font-medium border-b">Sélectionner une mission</div>
-                  {archived.map(a => (
+                  {archived.map(a => { const s = summaries[a.id]; return (
                     <button key={a.id} className="w-full text-left px-2 py-1 hover:bg-muted text-xs" onClick={()=> { selectAssessment(a.id); setShowArchivePicker(false); }}>
-                      {a.id.slice(0,6)} · {a.templateId || 'modèle'}
+                      {a.id.slice(0,6)} · {a.templateId || 'modèle'}{s && <> · {Math.round(s.score)}% {s.maturity}</>}
                       <span className="block text-[10px] text-muted-foreground">Clôturé {new Date(a.completedAt!).toLocaleDateString()}</span>
                     </button>
-                  ))}
+                  ); })}
                 </div>
               )}
             </div>
