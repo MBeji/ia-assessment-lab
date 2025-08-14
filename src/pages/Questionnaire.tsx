@@ -23,7 +23,7 @@ const Questionnaire = () => {
   const nav = useNavigate();
   const { assessment, categories, questions, updateResponse, responses, answeredRatio, computeScores, departments, templateId, templates } = useAssessment();
   const [activeDept, setActiveDept] = useState(assessment?.selectedDepartments[0]);
-  const [step, setStep] = useState(0); // category index
+  const [step, setStep] = useState(0); // category index (org-level only)
   const activeTemplate = useMemo(()=> templates.find(t => t.id === templateId), [templates, templateId]);
   const orgLevel = activeTemplate?.assessmentScope === 'organization';
   const [collapsedCats, setCollapsedCats] = useState<Record<string, boolean>>({});
@@ -89,7 +89,7 @@ const Questionnaire = () => {
         <div className="flex items-center justify-between gap-4">
           <div>
             <h1 className="text-2xl font-semibold">Questionnaire — {activeTemplate?.name}</h1>
-            <p className="text-xs text-muted-foreground">Scope: {orgLevel ? 'Organisation' : 'Multi-départements'} · Départements: {assessment.selectedDepartments.join(', ')}</p>
+            <p className="text-xs text-muted-foreground">Mode: {orgLevel ? 'Organisation (thèmes seulement)' : 'Par département'} · Départements: {assessment.selectedDepartments.join(', ')}</p>
           </div>
           <div className="flex items-center gap-4">
             <div className="w-56">
@@ -99,20 +99,22 @@ const Questionnaire = () => {
             <Button variant="outline" size="sm" onClick={()=> nav('/')}>Terminer plus tard</Button>
           </div>
         </div>
-        <div className="flex gap-2 overflow-x-auto pb-1" role="tablist" aria-label="Catégories">
-          {categories.map((c, idx) => {
-            const pct = Math.round((categoryProgress[c.id] || 0) * 100);
-            return (
-              <button key={c.id} onClick={()=> setStep(idx)} className={`px-3 py-1 rounded border text-xs whitespace-nowrap flex flex-col items-start min-w-[120px] ${step===idx ? 'bg-primary text-primary-foreground' : 'bg-muted/40'}`}> 
-                <span className="font-medium truncate max-w-[100px]">{idx+1}. {c.name}</span>
-                <span className="text-[10px] opacity-80">{pct}%</span>
-                <div className="h-1 w-full bg-border rounded mt-0.5">
-                  <div className="h-full bg-green-500 rounded" style={{width: pct + '%'}} />
-                </div>
-              </button>
-            );
-          })}
-        </div>
+        {orgLevel && (
+          <div className="flex gap-2 overflow-x-auto pb-1" role="tablist" aria-label="Catégories">
+            {categories.map((c, idx) => {
+              const pct = Math.round((categoryProgress[c.id] || 0) * 100);
+              return (
+                <button key={c.id} onClick={()=> setStep(idx)} className={`px-3 py-1 rounded border text-xs whitespace-nowrap flex flex-col items-start min-w-[120px] ${step===idx ? 'bg-primary text-primary-foreground' : 'bg-muted/40'}`}> 
+                  <span className="font-medium truncate max-w-[100px]">{idx+1}. {c.name}</span>
+                  <span className="text-[10px] opacity-80">{pct}%</span>
+                  <div className="h-1 w-full bg-border rounded mt-0.5">
+                    <div className="h-full bg-green-500 rounded" style={{width: pct + '%'}} />
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+        )}
       </div>
 
       {!orgLevel && (
@@ -131,7 +133,7 @@ const Questionnaire = () => {
         </div>
       )}
 
-      {orgLevel ? (
+  {orgLevel ? (
         <div className="space-y-4">
           <Card>
             <CardHeader className="flex flex-col gap-2">
@@ -208,86 +210,87 @@ const Questionnaire = () => {
             </Card>
         </div>
       ) : (
-        <Tabs value={activeDept} onValueChange={(v)=>setActiveDept(v as any)} className="space-y-4">
+        <Tabs value={activeDept} onValueChange={(v)=>setActiveDept(v as any)} className="space-y-6">
           <TabsList className="flex-wrap">
             {assessment.selectedDepartments.map(d => (
               <TabsTrigger key={d} value={d}>{d}</TabsTrigger>
             ))}
           </TabsList>
           {assessment.selectedDepartments.map(d => (
-            <TabsContent key={d} value={d} className="space-y-4">
-              <Card>
-                <CardHeader className="flex flex-col gap-2">
-                  <div className="flex items-start justify-between">
-                    <div>
-                      <CardTitle>{currentCategory.name}</CardTitle>
-                      <CardDescription>{currentCategory.description}</CardDescription>
-                    </div>
-                    <Button size="sm" variant="ghost" onClick={()=> toggleCollapse(currentCategory.id)}>{collapsedCats[currentCategory.id] ? 'Déplier' : 'Replier'}</Button>
-                  </div>
-                  <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                    <span>Catégorie {step+1}/{categories.length}</span>
-                    <span>· Progression {Math.round((categoryProgress[currentCategory.id]||0)*100)}%</span>
-                  </div>
-                </CardHeader>
-                {!collapsedCats[currentCategory.id] && (
-                <CardContent className="space-y-6">
-                  {relevantQuestionsByDept[d][currentCategory.id].map((q) => {
-                    const resp = responses.find(r => r.assessmentId === assessment.id && r.departmentId === d && r.questionId === q.id);
-                    const val = resp?.isNA ? null : (resp?.value ?? null);
-                    const showEvidence = (val ?? -1) >= q.evidenceRequiredThreshold;
-                    const deptName = departments.find(dd=>dd.id===d)?.name || d;
-                    return (
-                      <div key={q.id} className="space-y-3">
-                        <div className="font-medium flex flex-col gap-1">
-                          <span>[{deptName}] {q.code} — {q.text}</span>
+            <TabsContent key={d} value={d} className="space-y-6">
+              {categories.map(cat => {
+                const catQs = relevantQuestionsByDept[d][cat.id];
+                const pct = Math.round((catQs.length ? catQs.filter(q=>{
+                  const r = responses.find(r => r.assessmentId===assessment.id && r.departmentId===d && r.questionId===q.id);
+                  return r && !r.isNA && r.value !== null; }).length / catQs.length : 0)*100);
+                return (
+                  <Card key={cat.id}>
+                    <CardHeader className="flex flex-col gap-2">
+                      <div className="flex items-start justify-between">
+                        <div>
+                          <CardTitle>{cat.name}</CardTitle>
+                          <CardDescription>{cat.description}</CardDescription>
                         </div>
-                        <div className="grid grid-cols-7 gap-3 items-end">
-                          <RadioGroup className="col-span-6 grid grid-cols-7 gap-2" value={resp?.isNA ? 'NA' : (val?.toString() ?? '')} onValueChange={(v)=>{
-                            if (v === 'NA') onSet(q.id, d, null, true);
-                            else onSet(q.id, d, Number(v), false);
-                          }}>
-                            {likert.map(l => (
-                              <div key={l} className="flex flex-col items-center">
-                                <RadioGroupItem id={`${q.id}-${d}-${l}`} value={String(l)} />
-                                <Label htmlFor={`${q.id}-${d}-${l}`} className="text-xs mt-1">{l}</Label>
-                              </div>
-                            ))}
-                            <div className="flex flex-col items-center">
-                              <RadioGroupItem id={`${q.id}-${d}-NA`} value={'NA'} />
-                              <Label htmlFor={`${q.id}-${d}-NA`} className="text-xs mt-1">N/A</Label>
-                            </div>
-                          </RadioGroup>
-                          <div className="col-span-1 text-xs text-muted-foreground">
-                            {val !== null && val !== undefined && <span>{labels[val]}</span>}
-                          </div>
-                        </div>
-                        <div className="grid gap-2">
-                          <Label htmlFor={`${q.id}-${d}-comment`}>Commentaire (facultatif)</Label>
-                          <Textarea id={`${q.id}-${d}-comment`} value={resp?.comment ?? ''} onChange={(e)=> updateResponse({ questionId: q.id, departmentId: d as any, value: val, isNA: !!resp?.isNA, comment: e.target.value })} placeholder="Précisions, contexte..." />
-                        </div>
-                        {showEvidence && (
-                          <div className="grid gap-2">
-                            <Label htmlFor={`${q.id}-${d}-evidence`}>Preuves (lien ou note, facultatif)</Label>
-                            <Input id={`${q.id}-${d}-evidence`} value={resp?.evidence ?? ''} onChange={(e)=> updateResponse({ questionId: q.id, departmentId: d as any, value: val, isNA: !!resp?.isNA, evidence: e.target.value })} placeholder="https://... ou texte" />
-                          </div>
-                        )}
+                        <Button size="sm" variant="ghost" onClick={()=> toggleCollapse(cat.id)}>{collapsedCats[cat.id] ? 'Déplier' : 'Replier'}</Button>
                       </div>
-                    );
-                  })}
-
-                  <div className="flex items-center justify-between pt-2">
-                    <Button variant="outline" disabled={step===0} onClick={()=> setStep(s=>Math.max(0, s-1))}>Précédent</Button>
-                    <div className="flex items-center gap-2">
-                      {step < categories.length-1 ? (
-                        <Button onClick={()=> setStep(s=> Math.min(categories.length-1, s+1))}>Suivant</Button>
-                      ) : (
-                        <Button variant="hero" onClick={onResults}>Voir les résultats</Button>
-                      )}
-                    </div>
-                  </div>
-                </CardContent>) }
-              </Card>
+                      <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                        <span>Progression {pct}%</span>
+                        <span>· {catQs.length} q.</span>
+                      </div>
+                      <div className="h-1 w-full bg-border rounded overflow-hidden"><div className="h-full bg-green-500" style={{width: pct+'%'}}/></div>
+                    </CardHeader>
+                    {!collapsedCats[cat.id] && (
+                    <CardContent className="space-y-6">
+                      {catQs.map(q => {
+                        const resp = responses.find(r => r.assessmentId===assessment.id && r.departmentId===d && r.questionId===q.id);
+                        const val = resp?.isNA ? null : (resp?.value ?? null);
+                        const showEvidence = (val ?? -1) >= q.evidenceRequiredThreshold;
+                        const deptName = departments.find(dd=>dd.id===d)?.name || d;
+                        return (
+                          <div key={q.id} className="space-y-3">
+                            <div className="font-medium flex flex-col gap-1">
+                              <span>[{deptName}] {q.code} — {q.text}</span>
+                            </div>
+                            <div className="grid grid-cols-7 gap-3 items-end">
+                              <RadioGroup className="col-span-6 grid grid-cols-7 gap-2" value={resp?.isNA ? 'NA' : (val?.toString() ?? '')} onValueChange={(v)=>{
+                                if (v === 'NA') onSet(q.id, d, null, true);
+                                else onSet(q.id, d, Number(v), false);
+                              }}>
+                                {likert.map(l => (
+                                  <div key={l} className="flex flex-col items-center">
+                                    <RadioGroupItem id={`${q.id}-${d}-${l}`} value={String(l)} />
+                                    <Label htmlFor={`${q.id}-${d}-${l}`} className="text-xs mt-1">{l}</Label>
+                                  </div>
+                                ))}
+                                <div className="flex flex-col items-center">
+                                  <RadioGroupItem id={`${q.id}-${d}-NA`} value={'NA'} />
+                                  <Label htmlFor={`${q.id}-${d}-NA`} className="text-xs mt-1">N/A</Label>
+                                </div>
+                              </RadioGroup>
+                              <div className="col-span-1 text-xs text-muted-foreground">
+                                {val !== null && val !== undefined && <span>{labels[val]}</span>}
+                              </div>
+                            </div>
+                            <div className="grid gap-2">
+                              <Label htmlFor={`${q.id}-${d}-comment`}>Commentaire (facultatif)</Label>
+                              <Textarea id={`${q.id}-${d}-comment`} value={resp?.comment ?? ''} onChange={(e)=> updateResponse({ questionId: q.id, departmentId: d as any, value: val, isNA: !!resp?.isNA, comment: e.target.value })} placeholder="Précisions, contexte..." />
+                            </div>
+                            {showEvidence && (
+                              <div className="grid gap-2">
+                                <Label htmlFor={`${q.id}-${d}-evidence`}>Preuves (lien ou note, facultatif)</Label>
+                                <Input id={`${q.id}-${d}-evidence`} value={resp?.evidence ?? ''} onChange={(e)=> updateResponse({ questionId: q.id, departmentId: d as any, value: val, isNA: !!resp?.isNA, evidence: e.target.value })} placeholder="https://... ou texte" />
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </CardContent>) }
+                  </Card>
+                );
+              })}
+              <div className="flex justify-end">
+                <Button variant="hero" onClick={onResults}>Voir les résultats</Button>
+              </div>
             </TabsContent>
           ))}
         </Tabs>
