@@ -1,3 +1,4 @@
+import React from 'react';
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -18,6 +19,13 @@ import { AssessmentProvider } from "./context/AssessmentContext";
 
 const queryClient = new QueryClient();
 
+class RouteErrorBoundary extends React.Component<{children: React.ReactNode}, {error?: any}> {
+  constructor(props: any){ super(props); this.state = {}; }
+  static getDerivedStateFromError(error: any){ return { error }; }
+  componentDidCatch(err: any){ console.error('Route rendering error', err); }
+  render(){ if(this.state.error) return <div className="p-8 text-sm text-destructive">Erreur d’affichage. <button className="underline" onClick={()=> { this.setState({error:undefined}); window.location.href='/'; }}>Retour accueil</button></div>; return this.props.children; }
+}
+
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <TooltipProvider>
@@ -26,6 +34,7 @@ const App = () => (
       <AssessmentProvider>
         <BrowserRouter>
           <Suspense fallback={<div className="p-8 text-sm text-muted-foreground">Chargement...</div>}>
+            <RouteErrorBoundary>
             <Routes>
               <Route path="/" element={<Index />} />
               <Route path="/questionnaire" element={<Questionnaire />} />
@@ -38,6 +47,7 @@ const App = () => (
               {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
               <Route path="*" element={<NotFound />} />
             </Routes>
+            </RouteErrorBoundary>
           </Suspense>
         </BrowserRouter>
       </AssessmentProvider>

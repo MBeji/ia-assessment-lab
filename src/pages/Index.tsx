@@ -14,7 +14,7 @@ const sizes = ["< 100", "100-500", "500-2000", "> 2000"];
 
 const Index = () => {
   const nav = useNavigate();
-  const { departments, startAssessment, templates, setTemplateId, assessment, assessments, selectAssessment, closeAssessment, deleteAssessment, getAssessmentProgress, exportAssessment, categories } = useAssessment();
+  const { departments, startAssessment, templates, setTemplateId, assessment, assessments, selectAssessment, closeAssessment, deleteAssessment, getAssessmentProgress, exportAssessment, categories, responses } = useAssessment();
   const [name, setName] = useState("");
   const [sector, setSector] = useState(sectors[0]);
   const [size, setSize] = useState(sizes[0]);
@@ -211,6 +211,29 @@ const Index = () => {
               )}
               <div className="pt-2">
                 <Button onClick={onStart} variant="hero" className="w-full">Commencer l’évaluation</Button>
+                {assessment && (
+                  <Card>
+                    <CardHeader>
+                      <CardTitle>Questionnaire (lecture seule)</CardTitle>
+                      <CardDescription>Mission active – aperçu des catégories & questions avec valeur</CardDescription>
+                    </CardHeader>
+                    <CardContent className="space-y-4 max-h-[480px] overflow-auto pr-2 text-xs">
+                      {(assessment.categoriesSnapshot || categories).map(cat => (
+                        <div key={cat.id} className="space-y-1">
+                          <div className="font-semibold text-[11px]">{cat.name}</div>
+                          <ul className="ml-4 list-disc space-y-0.5">
+                            {(assessment.questionsSnapshot || []).filter(q=> q.categoryId===cat.id).map(q => {
+                              const resp = responses.find(r=> r.assessmentId===assessment.id && r.questionId===q.id);
+                              const display = resp ? (resp.isNA ? 'NA' : resp.value ?? '') : '';
+                              return <li key={q.id}>{q.code} – {q.text} {display!=='' && <span className="opacity-60">[{display}]</span>}</li>;
+                            })}
+                          </ul>
+                        </div>
+                      ))}
+                      <div className="text-[10px] text-muted-foreground">Consultation uniquement ici. Modification des réponses désactivée.</div>
+                    </CardContent>
+                  </Card>
+                )}
               </div>
             </div>
           </CardContent>
