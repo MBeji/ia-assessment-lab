@@ -106,6 +106,19 @@ export const AssessmentProvider: React.FC<{ children: React.ReactNode }> = ({ ch
         questionsSnapshot: TEMPLATES[0]?.questions,
         rulesSnapshot: TEMPLATES[0]?.rules,
       };
+      // Also inject a few synthetic responses (non-NA) so charts/plan show quelque chose
+      const demoQuestions = (TEMPLATES[0]?.questions || []).slice(0, 12);
+      setResponses(prevR => [
+        ...prevR,
+        ...demoQuestions.map((q, idx) => ({
+          id: `demo_resp_${idx}`,
+          assessmentId: 'demo_assessment',
+          questionId: q.id,
+          departmentId: 'DG' as any,
+          value: (idx % 5) + 1,
+          isNA: false,
+        }))
+      ]);
       return [demo, ...prev];
     });
   }, []);
@@ -474,6 +487,29 @@ export const AssessmentProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     // Invalidate current scorecard/plan so they recompute for the selected assessment
     setScorecard(undefined);
     setPlan(undefined);
+    // If no responses exist locally for this assessment (e.g., demo), prefill NA responses for all relevant question/department pairs
+    setResponses(prev => {
+      const existing = prev.filter(r => r.assessmentId === a.id);
+      if (existing.length > 0) return prev; // nothing to do
+      const qs = (a.questionsSnapshot || questions).filter(q => q);
+      const depts = a.selectedDepartments;
+      const filled: ResponseRow[] = [];
+      depts.forEach(d => {
+        qs.forEach(q => {
+          if (q.appliesToDepartments.includes('ALL') || q.appliesToDepartments.includes(d)) {
+            filled.push({
+              id: genId(),
+              assessmentId: a.id,
+              questionId: q.id,
+              departmentId: d,
+              value: null,
+              isNA: true,
+            });
+          }
+        });
+      });
+      return [...prev, ...filled];
+    });
     // If using remote storage, fetch responses for this assessment (they may not be in local state yet)
     if (USE_SUPABASE) {
       (async () => {

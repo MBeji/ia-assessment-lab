@@ -119,8 +119,8 @@ const Results = () => {
   const sc = scorecard || (()=>{ try { return computeScores(); } catch { return undefined; } })();
   const hasValidScorecard = !!sc && Object.keys(sc.categoryScores||{}).length>0;
 
-  const radarData = categories.map(c => ({ category: c.name, score: sc.categoryScores[c.id] || 0 }));
-  const barData = assessment.selectedDepartments.map(d => ({ department: d, score: sc.departmentScores[d] || 0 }));
+  const radarData = sc ? categories.map(c => ({ category: c.name, score: sc.categoryScores[c.id] || 0 })) : [];
+  const barData = sc ? assessment.selectedDepartments.map(d => ({ department: d, score: (sc as any).departmentScores[d] || 0 })) : [];
 
   const critical = useMemo(() => {
     return responses
@@ -132,8 +132,8 @@ const Results = () => {
       }));
   }, [responses, assessment.id, questions, departments]);
 
-  const topCats = [...categories].sort((a,b)=> (sc.categoryScores[b.id]||0)-(sc.categoryScores[a.id]||0)).slice(0,3);
-  const lowCats = [...categories].sort((a,b)=> (sc.categoryScores[a.id]||0)-(sc.categoryScores[b.id]||0)).slice(0,3);
+  const topCats = sc ? [...categories].sort((a,b)=> (sc.categoryScores[b.id]||0)-(sc.categoryScores[a.id]||0)).slice(0,3) : [];
+  const lowCats = sc ? [...categories].sort((a,b)=> (sc.categoryScores[a.id]||0)-(sc.categoryScores[b.id]||0)).slice(0,3) : [];
 
   // Coverage computation: total relevant questions vs answered (non-NA)
   const totalRelevant = assessment.selectedDepartments.reduce((acc, d) => acc + questions.filter(q => q.categoryId && (q.appliesToDepartments.includes('ALL') || q.appliesToDepartments.includes(d))).length, 0);
@@ -171,7 +171,10 @@ const Results = () => {
         </div>
       )}
 
-      <div className="grid md:grid-cols-3 gap-6">
+      {!sc && (
+        <div className="mb-6 text-sm text-muted-foreground">Aucune réponse exploitable encore pour calculer les scores.</div>
+      )}
+      {sc && <div className="grid md:grid-cols-3 gap-6">
         <Card className="md:col-span-1">
           <CardHeader>
             <CardTitle>Score global</CardTitle>
@@ -194,9 +197,9 @@ const Results = () => {
             </Suspense>
           </CardContent>
         </Card>
-      </div>
+      </div>}
 
-      <div className="grid md:grid-cols-2 gap-6 mt-6">
+  {sc && <div className="grid md:grid-cols-2 gap-6 mt-6">
         <Card>
           <CardHeader>
             <CardTitle>Scores par département</CardTitle>
@@ -217,9 +220,9 @@ const Results = () => {
             </Suspense>
           </CardContent>
         </Card>
-      </div>
+  </div>}
 
-      <div className="grid md:grid-cols-2 gap-6 mt-6">
+  {sc && <div className="grid md:grid-cols-2 gap-6 mt-6">
         <Card>
           <CardHeader><CardTitle>Top forces</CardTitle></CardHeader>
           <CardContent className="space-y-2">
@@ -232,7 +235,7 @@ const Results = () => {
             {lowCats.map(c => (<div key={c.id} className="flex items-center justify-between"><span>{c.name}</span><span className="font-medium">{Math.round(sc.categoryScores[c.id]||0)}%</span></div>))}
           </CardContent>
         </Card>
-      </div>
+  </div>}
 
       <div className="mt-6 flex justify-end">
   <Button variant="hero" disabled={!hasValidScorecard} onClick={()=> { if(sc) { generatePlan(sc); nav('/plan'); } }}>Générer le plan d’action</Button>
