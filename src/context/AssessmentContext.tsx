@@ -88,6 +88,26 @@ export const AssessmentProvider: React.FC<{ children: React.ReactNode }> = ({ ch
   if (parsed.templateId) setTemplateIdState(parsed.templateId);
       } catch {}
     }
+    // Inject a fictive archived mission if none present
+    setAssessments(prev => {
+      if (prev.some(a => a.id === 'demo_assessment')) return prev;
+      const now = new Date().toISOString();
+      const demo: Assessment = {
+        id: 'demo_assessment',
+        orgId: 'demo_org',
+        assessorName: 'Demo',
+        assessorEmail: 'demo@example.com',
+        selectedDepartments: ['DG'] as any,
+        startedAt: now,
+        updatedAt: now,
+        completedAt: now,
+        templateId: TEMPLATES[0]?.id,
+        categoriesSnapshot: TEMPLATES[0]?.categories,
+        questionsSnapshot: TEMPLATES[0]?.questions,
+        rulesSnapshot: TEMPLATES[0]?.rules,
+      };
+      return [demo, ...prev];
+    });
   }, []);
 
   // Persist to localStorage

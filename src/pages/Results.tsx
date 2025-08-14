@@ -1,4 +1,4 @@
-import { useMemo, lazy, Suspense } from "react";
+import { useMemo, lazy, Suspense, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Layout } from "@/components/Layout";
 import { SEO } from "@/components/SEO";
@@ -15,7 +15,9 @@ const HeatmapQuestions = lazy(()=> import('@/components/charts/HeatmapQuestions'
 
 const Results = () => {
   const nav = useNavigate();
-  const { assessment, categories, departments, responses, computeScores, scorecard, questions, generatePlan } = useAssessment();
+  const { assessment, categories, departments, responses, computeScores, scorecard, questions, generatePlan, assessments, selectAssessment } = useAssessment();
+  const archived = assessments.filter(a => a.completedAt);
+  const [showArchivePicker, setShowArchivePicker] = useState(false);
 
   if (!assessment) return <Layout><p>Veuillez démarrer une évaluation.</p></Layout>;
   const sc = scorecard || computeScores();
@@ -54,7 +56,24 @@ const Results = () => {
     <Layout>
   <SEO title="SynapFlow – Résultats" description="Scores par catégorie et département, forces/faiblesses." canonical={window.location.origin + "/resultats"} />
       <div className="flex items-center justify-between mb-4">
-        <div />
+        <div className="flex items-center gap-2">
+          {archived.length > 0 && (
+            <div className="relative">
+              <Button variant="outline" size="sm" onClick={()=> setShowArchivePicker(s=>!s)}>Missions archivées</Button>
+              {showArchivePicker && (
+                <div className="absolute z-20 mt-1 w-64 max-h-72 overflow-auto border bg-background rounded shadow">
+                  <div className="p-2 text-xs font-medium border-b">Sélectionner une mission</div>
+                  {archived.map(a => (
+                    <button key={a.id} className="w-full text-left px-2 py-1 hover:bg-muted text-xs" onClick={()=> { selectAssessment(a.id); setShowArchivePicker(false); }}>
+                      {a.id.slice(0,6)} · {a.templateId || 'modèle'}
+                      <span className="block text-[10px] text-muted-foreground">Clôturé {new Date(a.completedAt!).toLocaleDateString()}</span>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+        </div>
         {remaining > 0 && (
           <Badge variant="secondary">Questions restantes: {remaining}</Badge>
         )}

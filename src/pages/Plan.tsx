@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { Layout } from "@/components/Layout";
 import { SEO } from "@/components/SEO";
 import { useAssessment } from "@/context/AssessmentContext";
@@ -12,7 +12,9 @@ const impactRank = { H: 3, M: 2, L: 1 } as const;
 const effortRank = { L: 1, M: 2, H: 3 } as const;
 
 const Plan = () => {
-  const { plan, scorecard, computeScores, generatePlan, assessment, responses, questions } = useAssessment();
+  const { plan, scorecard, computeScores, generatePlan, assessment, responses, questions, assessments, selectAssessment } = useAssessment();
+  const archived = assessments.filter(a => a.completedAt);
+  const [showArchivePicker, setShowArchivePicker] = useState(false);
   const sc = scorecard || computeScores();
   const p = plan || generatePlan(sc);
 
@@ -34,7 +36,25 @@ const Plan = () => {
     <Layout>
   <SEO title="SynapFlow – Plan d’action" description="Plan d’action priorisé par horizon avec quick wins." canonical={window.location.origin + "/plan"} />
       <div className="flex items-center justify-between mb-4">
-        <h1 className="text-2xl font-semibold">Plan d’action priorisé</h1>
+        <div className="flex items-center gap-3">
+          <h1 className="text-2xl font-semibold">Plan d’action priorisé</h1>
+          {archived.length > 0 && (
+            <div className="relative">
+              <Button variant="outline" size="sm" onClick={()=> setShowArchivePicker(s=>!s)}>Missions archivées</Button>
+              {showArchivePicker && (
+                <div className="absolute z-20 mt-1 w-64 max-h-72 overflow-auto border bg-background rounded shadow">
+                  <div className="p-2 text-xs font-medium border-b">Sélectionner une mission</div>
+                  {archived.map(a => (
+                    <button key={a.id} className="w-full text-left px-2 py-1 hover:bg-muted text-xs" onClick={()=> { selectAssessment(a.id); setShowArchivePicker(false); }}>
+                      {a.id.slice(0,6)} · {a.templateId || 'modèle'}
+                      <span className="block text-[10px] text-muted-foreground">Clôturé {new Date(a.completedAt!).toLocaleDateString()}</span>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+        </div>
         <ImportExport />
       </div>
       {remaining > 0 && (
