@@ -471,6 +471,29 @@ export const AssessmentProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     }
     if (a.rulesSnapshot) setRules(a.rulesSnapshot as any);
     if (a.templateId) setTemplateIdState(a.templateId);
+    // Invalidate current scorecard/plan so they recompute for the selected assessment
+    setScorecard(undefined);
+    setPlan(undefined);
+    // If using remote storage, fetch responses for this assessment (they may not be in local state yet)
+    if (USE_SUPABASE) {
+      (async () => {
+        try {
+          const remoteRs = await supaFetchResponses(a.id);
+          if (remoteRs.length) {
+            setResponses(prev => {
+              // remove any stale responses for this assessment before adding fresh ones
+              const without = prev.filter(r => r.assessmentId !== a.id);
+              return [...without, ...remoteRs];
+            });
+            // force recompute by clearing scorecard again (component using computeScores will regenerate)
+            setScorecard(undefined);
+            setPlan(undefined);
+          }
+        } catch (e) {
+          // silent: failure just means results will appear empty
+        }
+      })();
+    }
   };
 
   const closeAssessment = (id: string) => {

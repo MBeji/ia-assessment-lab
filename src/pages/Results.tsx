@@ -49,7 +49,9 @@ const Results = () => {
       </Layout>
     );
   }
-  const sc = scorecard || computeScores();
+  // Recompute scores when switching assessments if needed
+  const sc = scorecard || (()=>{ try { return computeScores(); } catch { return undefined; } })();
+  const hasValidScorecard = !!sc && Object.keys(sc.categoryScores||{}).length>0;
 
   const radarData = categories.map(c => ({ category: c.name, score: sc.categoryScores[c.id] || 0 }));
   const barData = assessment.selectedDepartments.map(d => ({ department: d, score: sc.departmentScores[d] || 0 }));
@@ -186,7 +188,7 @@ const Results = () => {
       </div>
 
       <div className="mt-6 flex justify-end">
-        <Button variant="hero" onClick={()=> { generatePlan(sc); nav('/plan'); }}>Générer le plan d’action</Button>
+  <Button variant="hero" disabled={!hasValidScorecard} onClick={()=> { if(sc) { generatePlan(sc); nav('/plan'); } }}>Générer le plan d’action</Button>
       </div>
     </Layout>
   );
