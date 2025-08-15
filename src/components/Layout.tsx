@@ -9,7 +9,7 @@ const navItems = [
   { to: "/plan", label: "Plan d’action" },
   { to: "/admin", label: "Admin" },
   { to: "/referentiel", label: "Référentiel" },
-  { to: "/archives", label: "Archives" },
+  { to: "/missions", label: "Missions" },
   { to: "/aide", label: "Aide" },
 ];
 
