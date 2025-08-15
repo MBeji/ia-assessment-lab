@@ -822,16 +822,18 @@ export const AssessmentProvider: React.FC<{ children: React.ReactNode }> = ({ ch
           const remoteRs = await supaFetchResponses(a.id);
           if (remoteRs.length) {
             setResponses(prev => {
-              // remove any stale responses for this assessment before adding fresh ones
               const without = prev.filter(r => r.assessmentId !== a.id);
               return [...without, ...remoteRs];
             });
-            // force recompute by clearing scorecard again (component using computeScores will regenerate)
             setScorecard(undefined);
             setPlan(undefined);
           }
-        } catch (e) {
-          // silent: failure just means results will appear empty
+        } catch (e: any) {
+          if (e?.message?.includes('404') || e?.status === 404) {
+            console.warn('[supabase] Table responses introuvable ou non accessible (404) – utilisation du mode local uniquement.');
+          } else {
+            console.warn('[supabase] Échec fetch responses:', e);
+          }
         }
       })();
     }

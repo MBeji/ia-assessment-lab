@@ -60,17 +60,30 @@ export async function listAssessments(): Promise<Assessment[]> {
 
 export async function fetchResponses(assessmentId: string): Promise<ResponseRow[]> {
   if(!supabase) return [];
-  const { data } = await supabase.from('responses').select('*').eq('assessment_id', assessmentId);
-  return (data||[]).map((r: any) => ({
-    id: r.id,
-    assessmentId: r.assessment_id,
-    questionId: r.question_id,
-    departmentId: r.department_id,
-    value: r.value,
-    isNA: r.is_na,
-    comment: r.comment || undefined,
-    evidence: r.evidence || undefined,
-  }));
+  try {
+    const { data, error, status } = await supabase.from('responses').select('*').eq('assessment_id', assessmentId);
+    if (error) {
+      if (status === 404) {
+        console.warn('[supabase] table responses 404 – ignorer');
+        return [];
+      }
+      console.warn('[supabase] fetchResponses erreur:', error.message);
+      return [];
+    }
+    return (data||[]).map((r: any) => ({
+      id: r.id,
+      assessmentId: r.assessment_id,
+      questionId: r.question_id,
+      departmentId: r.department_id,
+      value: r.value,
+      isNA: r.is_na,
+      comment: r.comment || undefined,
+      evidence: r.evidence || undefined,
+    }));
+  } catch (e:any) {
+    console.warn('[supabase] fetchResponses exception:', e?.message || e);
+    return [];
+  }
 }
 
 export async function saveScorePlan(assessmentId: string, scorecard?: Scorecard, plan?: Plan) {

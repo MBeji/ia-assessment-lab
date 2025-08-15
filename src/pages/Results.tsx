@@ -16,8 +16,7 @@ const ScoreHistory = lazy(()=> import('@/components/charts/ScoreHistory').then(m
 
 const Results = () => {
   const nav = useNavigate();
-  const { assessment, categories, departments, responses, computeScores, scorecard, questions, generatePlan, assessments, selectAssessment, getAssessmentScorecard, getAssessmentProgress, closeDepartment, reopenDepartment, isDepartmentClosed } = useAssessment() as any;
-  const { getScoreHistory } = useAssessment() as any;
+  const { assessment, categories, departments, responses, computeScores, scorecard, questions, generatePlan, assessments, selectAssessment, getAssessmentScorecard, getAssessmentProgress, closeDepartment, reopenDepartment, isDepartmentClosed, getScoreHistory } = useAssessment() as any;
   const allTags = useMemo(()=> Array.from(new Set(questions.flatMap((q:any)=> q.tags||[]))).sort(), [questions]);
   const [activeTags, setActiveTags] = useState<string[]>([]);
   const archived = assessments.filter(a => a.completedAt);
