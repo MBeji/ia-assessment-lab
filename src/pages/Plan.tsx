@@ -12,7 +12,7 @@ const impactRank = { H: 3, M: 2, L: 1 } as const;
 const effortRank = { L: 1, M: 2, H: 3 } as const;
 
 const Plan = () => {
-  const { plan, scorecard, computeScores, generatePlan, assessment, responses, questions, assessments, selectAssessment, getAssessmentScorecard, getAssessmentProgress } = useAssessment();
+  const { plan, scorecard, computeScores, generatePlan, assessment, responses, questions, assessments, selectAssessment, getAssessmentScorecard, getAssessmentProgress, exportPlanCSV, setPlan } = useAssessment() as any;
   const [summaries, setSummaries] = useState<Record<string,{score:number; maturity:string}>>({});
   const [search, setSearch] = useState("");
   const [filterStatus, setFilterStatus] = useState<'all'|'active'|'archived'>('all');
@@ -99,6 +99,7 @@ const Plan = () => {
   }, [p]);
 
   const quickWins = p.items.filter(i => (i.impact !== 'L') && (i.effort !== 'H'));
+  const completion = p.items.length? Math.round(100 * (p.items.filter(i=> i.status==='DONE').length / p.items.length)) : 0;
 
   // Coverage summary
   const totalRelevant = assessment?.selectedDepartments.reduce((acc, d) => acc + questions.filter(q => q.categoryId && (q.appliesToDepartments.includes('ALL') || q.appliesToDepartments.includes(d))).length, 0) ?? 0;
@@ -133,6 +134,14 @@ const Plan = () => {
           </CardContent>
         </Card>
 
+        <Card>
+          <CardHeader><CardTitle>Progression</CardTitle></CardHeader>
+          <CardContent>
+            <div className="text-4xl font-semibold mb-2">{completion}%</div>
+            <div className="text-xs text-muted-foreground">{p.items.filter(i=>i.status==='DONE').length} / {p.items.length} actions terminées</div>
+          </CardContent>
+        </Card>
+
         <div className="grid md:grid-cols-3 gap-6 mt-6">
           {(['0-90j','3-6m','6-12m'] as const).map(h => (
             <Card key={h}>
@@ -140,10 +149,28 @@ const Plan = () => {
               <CardContent>
                 {groups[h].length ? (
                   <ol className="list-decimal pl-5 space-y-2">
-                    {groups[h].map((i,idx)=>(
-                      <li key={idx}>
-                        <div className="font-medium">{i.text}</div>
-                        <div className="text-xs text-muted-foreground">Impact {i.impact} · Effort {i.effort}</div>
+                    {groups[h].sort((a,b)=> (b.priorityScore||0)-(a.priorityScore||0)).map((i,idx)=>(
+                      <li key={i.id || idx} className="space-y-1">
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="font-medium leading-snug flex-1">
+                            {i.text}
+                            {i.duplicateGroupId && <span className="ml-2 text-[10px] px-1 py-0.5 rounded bg-amber-200 text-amber-900">Doublon {i.duplicateGroupId}</span>}
+                          </div>
+                          <select value={i.status || 'OPEN'} onChange={e=> {
+                            const v = e.target.value as any;
+                            setPlan((pl:any)=> pl && pl.assessmentId===assessment.id ? ({ ...pl, items: pl.items.map((x:any)=> x===i? { ...x, status:v }: x) }) : pl);
+                          }} className="h-6 text-[11px] border rounded bg-background">
+                            <option value="OPEN">Ouvert</option>
+                            <option value="IN_PROGRESS">En cours</option>
+                            <option value="DONE">Terminé</option>
+                          </select>
+                        </div>
+                        <div className="text-[11px] text-muted-foreground flex flex-wrap gap-2">
+                          <span>Impact {i.impact}</span>
+                          <span>Effort {i.effort}</span>
+                          {i.priorityScore!=null && <span>Priorité {i.priorityScore}</span>}
+                          {i.deficiency!=null && <span>Déficit {(i.deficiency*100).toFixed(0)}%</span>}
+                        </div>
                       </li>
                     ))}
                   </ol>
@@ -155,6 +182,7 @@ const Plan = () => {
       </>}
 
       {sc && p && <div className="mt-6 flex justify-end gap-2">
+        <Button onClick={()=> exportPlanCSV(assessment.id)} variant="outline">Export CSV</Button>
         <Button onClick={()=> window.print()} variant="outline">Imprimer / PDF</Button>
       </div>}
     </Layout>

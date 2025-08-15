@@ -513,15 +513,15 @@ export const AssessmentProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       avgByCat[cat.id] = sc.categoryScores[cat.id] || 0; // already 0..100
     });
 
-    // Category rules: compare to threshold on 0..5 scale => convert
-    const pctToLikert = (pct: number) => (pct / 100) * 5;
+  // Category rules: compare to threshold on 0..5 scale => convert
+  const pctToLikert = (pct: number) => (pct / 100) * 5;
 
-    rules.forEach(rule => {
+  rules.forEach(rule => {
       if (rule.scope === "category" && rule.categoryId) {
         const likert = pctToLikert(avgByCat[rule.categoryId] || 0);
         if (likert <= rule.threshold) {
           rule.actions.forEach(a => {
-            items.push({ ruleId: rule.id, horizon: a.horizon, text: a.text, impact: a.impact, effort: a.effort, linkedTo: { categoryId: rule.categoryId } });
+      items.push({ id: genId(), ruleId: rule.id, horizon: a.horizon, text: a.text, impact: a.impact, effort: a.effort, linkedTo: { categoryId: rule.categoryId }, status: 'OPEN' });
           });
         }
       }
@@ -533,11 +533,49 @@ export const AssessmentProvider: React.FC<{ children: React.ReactNode }> = ({ ch
         if (relevant.length) {
           const avg = relevant.reduce((a, r) => a + (r.value || 0), 0) / relevant.length;
           if (avg <= rule.threshold) {
-            rule.actions.forEach(a => items.push({ ruleId: rule.id, horizon: a.horizon, text: a.text, impact: a.impact, effort: a.effort, linkedTo: { categoryId: q.categoryId, questionId: q.id } }));
+            const deficiency = (rule.threshold - avg) / rule.threshold; // 0..1
+            rule.actions.forEach(a => items.push({ id: genId(), ruleId: rule.id, horizon: a.horizon, text: a.text, impact: a.impact, effort: a.effort, linkedTo: { categoryId: q.categoryId, questionId: q.id }, status: 'OPEN', deficiency: Math.max(0, Math.min(1, deficiency)) }));
           }
         }
       }
     });
+
+  // Add deficiency fallback for category-based if missing
+    items.forEach(it => {
+      if (it.deficiency == null && it.linkedTo.categoryId) {
+        const likert = pctToLikert(avgByCat[it.linkedTo.categoryId] || 0);
+        it.deficiency = Math.max(0, Math.min(1, (3 - likert) / 3));
+      }
+    });
+    const impactScore = { H: 3, M: 2, L: 1 } as const;
+    const effortInverse = { H: 1, M: 2, L: 3 } as const;
+    items.forEach(it => {
+      const base = impactScore[it.impact] * 2 + effortInverse[it.effort];
+      const def = it.deficiency ?? 0.5;
+      it.priorityScore = parseFloat((base * (0.5 + def)).toFixed(2));
+    });
+    // Duplicate grouping via simple token Jaccard
+    const normalize = (s: string) => s.toLowerCase().normalize('NFD').replace(/[^a-z0-9 ]/g,' ').replace(/\s+/g,' ').trim();
+    const tokensCache: Record<string,string[]> = {};
+    const tokenSet = (s:string)=> tokensCache[s] || (tokensCache[s] = normalize(s).split(' ').filter(t=>t.length>2));
+    let dupGroup = 0;
+    for (let i=0;i<items.length;i++) {
+      if (items[i].duplicateGroupId) continue;
+      const tA = tokenSet(items[i].text);
+      const groupIdx: number[] = [i];
+      for (let j=i+1;j<items.length;j++) {
+        if (items[j].duplicateGroupId) continue;
+        const tB = tokenSet(items[j].text);
+        const inter = tA.filter(t=> tB.includes(t));
+        const union = Array.from(new Set([...tA,...tB]));
+        const jaccard = union.length? inter.length/union.length : 0;
+        if (jaccard >= 0.5) groupIdx.push(j);
+      }
+      if (groupIdx.length>1) {
+        const gid = 'DUP-'+(++dupGroup);
+        groupIdx.forEach(k => items[k].duplicateGroupId = gid);
+      }
+    }
 
     // Sort items by horizon groups later; keep insertion order now
     const plan: Plan = { id: genId(), assessmentId: assessment.id, items };
@@ -570,8 +608,19 @@ export const AssessmentProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     if (!a) return;
     const pl = plan && plan.assessmentId===id ? plan : (scorecard && scorecard.assessmentId===id ? generatePlan(scorecard) : undefined);
     if(!pl) return;
-    const headers = ['Horizon','Texte','Impact','Effort','Catégorie','Question'];
-    const rows = pl.items.map(it => [it.horizon, '"'+(it.text.replace(/"/g,'""'))+'"', it.impact, it.effort, it.linkedTo.categoryId||'', it.linkedTo.questionId||'']);
+    const headers = ['Horizon','Texte','Impact','Effort','Catégorie','Question','Statut','Priorité','Déficit','DoublonGrp'];
+    const rows = pl.items.map(it => [
+      it.horizon,
+      '"'+(it.text.replace(/"/g,'""'))+'"',
+      it.impact,
+      it.effort,
+      it.linkedTo.categoryId||'',
+      it.linkedTo.questionId||'',
+      it.status||'',
+      it.priorityScore!=null? it.priorityScore: '',
+      it.deficiency!=null? it.deficiency.toFixed(2):'',
+      it.duplicateGroupId||''
+    ]);
     const csv = [headers.join(';'), ...rows.map(r=> r.join(';'))].join('\n');
     const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob); const ael = document.createElement('a'); ael.href=url; ael.download=`plan-${id.slice(0,6)}.csv`; ael.click(); URL.revokeObjectURL(url);

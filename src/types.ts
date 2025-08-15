@@ -101,6 +101,8 @@ export interface ActionItemDef {
   effort: EffortLevel;
 }
 
+export type ActionStatus = 'OPEN' | 'IN_PROGRESS' | 'DONE';
+
 export interface ActionRule {
   id: string;
   scope: "category" | "question";
@@ -111,12 +113,17 @@ export interface ActionRule {
 }
 
 export interface PlanItem {
+  id?: string; // unique id (added post-initial design)
   ruleId: string;
   horizon: Horizon;
   text: string;
   impact: ImpactLevel;
   effort: EffortLevel;
   linkedTo: { categoryId?: string; questionId?: string };
+  status?: ActionStatus; // workflow state
+  priorityScore?: number; // computed composite priority
+  deficiency?: number; // 0..1 gap severity
+  duplicateGroupId?: string; // group identifier if detected duplicate cluster
 }
 
 export interface Plan {
