@@ -19,6 +19,8 @@ const Plan = () => {
   const [sortBy, setSortBy] = useState<'date_desc'|'date_asc'|'score_desc'|'score_asc'>('date_desc');
   const [actionStatusFilter, setActionStatusFilter] = useState<'ALL'|'OPEN'|'IN_PROGRESS'|'DONE'>('ALL');
   const [sortByPriority, setSortByPriority] = useState(true);
+  const [kanbanMode, setKanbanMode] = useState(false);
+  const [editingJustifId, setEditingJustifId] = useState<string|null>(null);
   useEffect(()=>{
     const map: Record<string,{score:number; maturity:string}> = {};
     assessments.forEach(a=>{ const sc = getAssessmentScorecard(a.id); if(sc) map[a.id] = { score: sc.globalScore, maturity: sc.maturityLevel }; });
@@ -159,9 +161,11 @@ const Plan = () => {
             </select>
           </div>
           <button type="button" onClick={()=> setSortByPriority(s=> !s)} className="h-7 px-2 border rounded bg-background hover:bg-accent">Tri: {sortByPriority? 'Priorité' : 'Impact/Effort'}</button>
+          <button type="button" onClick={()=> setKanbanMode(m=> !m)} className="h-7 px-2 border rounded bg-background hover:bg-accent">Vue: {kanbanMode? 'Liste' : 'Kanban'}</button>
           {actionStatusFilter!=='ALL' && <button type="button" onClick={()=> setActionStatusFilter('ALL')} className="h-7 px-2 border rounded bg-background hover:bg-accent">Reset filtre</button>}
         </div>
-        <div className="grid md:grid-cols-3 gap-6 mt-4">
+        {kanbanMode && <KanbanActions plan={p} setPlan={setPlan} />}
+        {!kanbanMode && <div className="grid md:grid-cols-3 gap-6 mt-4">
           {(['0-90j','3-6m','6-12m'] as const).map(h => (
             <Card key={h}>
               <CardHeader><CardTitle>{h}</CardTitle></CardHeader>
@@ -177,6 +181,7 @@ const Plan = () => {
                           </div>
                           <select value={i.status || 'OPEN'} onChange={e=> {
                             const v = e.target.value as any;
+                            if (v==='DONE' && !i.justification) { setEditingJustifId(i.id); }
                             setPlan((pl:any)=> pl && pl.assessmentId===assessment.id ? ({ ...pl, items: pl.items.map((x:any)=> x===i? { ...x, status:v }: x) }) : pl);
                           }} className="h-6 text-[11px] border rounded bg-background">
                             <option value="OPEN">Ouvert</option>
@@ -188,9 +193,17 @@ const Plan = () => {
                           <span>Impact {i.impact}</span>
                           <span>Effort {i.effort}</span>
                           {i.priorityScore!=null && <span>Priorité {i.priorityScore}</span>}
+                          {i.roiScore!=null && <span>ROI {i.roiScore}</span>}
                           {i.deficiency!=null && <span>Déficit {(i.deficiency*100).toFixed(0)}%</span>}
                           {i.status && <span>Status {i.status==='OPEN'?'O': i.status==='IN_PROGRESS'?'E':'T'}</span>}
+                          {i.status==='DONE' && !i.justification && <span className="text-red-500 font-medium">Justification requise</span>}
                         </div>
+                        {editingJustifId===i.id && <div className="mt-1">
+                          <textarea className="w-full text-xs border rounded p-1" placeholder="Justification / evidence" value={i.justification||''} onChange={e=> setPlan((pl:any)=> pl && pl.assessmentId===assessment.id ? ({ ...pl, items: pl.items.map((x:any)=> x===i? { ...x, justification:e.target.value } : x) }) : pl)} />
+                          <div className="flex justify-end gap-2 mt-1">
+                            <Button variant="outline" className="h-6 px-2 py-0 text-[11px]" onClick={()=> setEditingJustifId(null)}>Fermer</Button>
+                          </div>
+                        </div>}
                       </li>
                     ))}
                   </ol>
@@ -198,7 +211,7 @@ const Plan = () => {
               </CardContent>
             </Card>
           ))}
-        </div>
+        </div>}
       </>}
 
       {sc && p && <div className="mt-6 flex justify-end gap-2">
@@ -211,3 +224,56 @@ const Plan = () => {
 };
 
 export default Plan;
+
+// Kanban actions component
+const KanbanActions: React.FC<{ plan: any; setPlan: any }> = ({ plan, setPlan }) => {
+  const cols = [
+    { key: 'OPEN', title: 'Ouvertes' },
+    { key: 'IN_PROGRESS', title: 'En cours' },
+    { key: 'DONE', title: 'Terminées' },
+  ];
+  const buckets: Record<string, any[]> = { OPEN: [], IN_PROGRESS: [], DONE: [] };
+  (plan.items||[]).forEach((it:any)=> { const st = it.status || 'OPEN'; if (buckets[st]) buckets[st].push(it); });
+  cols.forEach(c => buckets[c.key].sort((a,b)=> (b.priorityScore||0)-(a.priorityScore||0)));
+  return (
+    <div className="mt-4 overflow-x-auto">
+      <div className="flex gap-4 min-w-[880px]">
+        {cols.map(c => (
+          <div key={c.key} className="flex-1 min-w-[260px]">
+            <div className="flex items-center justify-between mb-2 text-xs font-semibold">
+              <span>{c.title}</span><span className="text-muted-foreground">{buckets[c.key].length}</span>
+            </div>
+            <div className="space-y-2">
+              {buckets[c.key].map(card => (
+                <div key={card.id} className="border rounded p-2 bg-background shadow-sm">
+                  <div className="text-[11px] font-medium leading-snug mb-1 flex flex-wrap gap-1">
+                    {card.text}
+                    {card.duplicateGroupId && <span className="text-[9px] px-1 rounded bg-amber-200 text-amber-900">D{card.duplicateGroupId.replace('DUP-','')}</span>}
+                  </div>
+                  <div className="text-[10px] text-muted-foreground flex flex-wrap gap-2 mb-1">
+                    {card.priorityScore!=null && <span>P {card.priorityScore}</span>}
+                    {card.roiScore!=null && <span>ROI {card.roiScore}</span>}
+                    {card.deficiency!=null && <span>Δ {(card.deficiency*100).toFixed(0)}%</span>}
+                  </div>
+                  <select value={card.status || 'OPEN'} onChange={e=> {
+                    const v = e.target.value;
+                    if (v==='DONE' && !card.justification) {
+                      // leave status but warn; require justification in list view logic
+                    }
+                    setPlan((pl:any)=> pl ? ({ ...pl, items: pl.items.map((x:any)=> x===card? { ...x, status:v } : x) }) : pl);
+                  }} className="h-6 text-[10px] border rounded bg-background w-full mb-1">
+                    <option value="OPEN">Ouverte</option>
+                    <option value="IN_PROGRESS">En cours</option>
+                    <option value="DONE">Terminée</option>
+                  </select>
+                  {card.status==='DONE' && !card.justification && <div className="text-[10px] text-red-500">Justification requise</div>}
+                </div>
+              ))}
+              {buckets[c.key].length===0 && <div className="text-[11px] text-muted-foreground italic">Aucune</div>}
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+};

@@ -124,6 +124,9 @@ export interface PlanItem {
   priorityScore?: number; // computed composite priority
   deficiency?: number; // 0..1 gap severity
   duplicateGroupId?: string; // group identifier if detected duplicate cluster
+  justification?: string; // evidence / rationale required when DONE
+  roiScore?: number; // impact/effort ratio
+  mergedInto?: string; // id of primary action if merged
 }
 
 export interface Plan {

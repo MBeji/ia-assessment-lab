@@ -554,6 +554,9 @@ export const AssessmentProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       const base = impactScore[it.impact] * 2 + effortInverse[it.effort];
       const def = it.deficiency ?? 0.5;
       it.priorityScore = parseFloat((base * (0.5 + def)).toFixed(2));
+  // ROI potentiel simple = impactScore / (effort numeric)
+  const effortNum = { L:1, M:2, H:3 }[it.effort];
+  it.roiScore = parseFloat((impactScore[it.impact] / effortNum).toFixed(2));
     });
     // Duplicate grouping via simple token Jaccard
     const normalize = (s: string) => s.toLowerCase().normalize('NFD').replace(/[^a-z0-9 ]/g,' ').replace(/\s+/g,' ').trim();
