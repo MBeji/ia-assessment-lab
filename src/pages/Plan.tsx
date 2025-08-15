@@ -12,7 +12,7 @@ const impactRank = { H: 3, M: 2, L: 1 } as const;
 const effortRank = { L: 1, M: 2, H: 3 } as const;
 
 const Plan = () => {
-  const { plan, scorecard, computeScores, generatePlan, assessment, responses, questions, assessments, selectAssessment, getAssessmentScorecard, getAssessmentProgress, exportPlanCSV, exportPlanXLSX, setPlan, generateExecutiveSummary } = useAssessment() as any;
+  const { plan, scorecard, computeScores, generatePlan, assessment, responses, questions, assessments, selectAssessment, getAssessmentScorecard, getAssessmentProgress, exportPlanCSV, exportPlanXLSX, setPlan, generateExecutiveSummary, generatePlanSuggestions } = useAssessment() as any;
   const [summaries, setSummaries] = useState<Record<string,{score:number; maturity:string}>>({});
   const [search, setSearch] = useState("");
   const [filterStatus, setFilterStatus] = useState<'all'|'active'|'archived'>('all');
@@ -159,6 +159,38 @@ const Plan = () => {
           <CardContent>
             <div className="text-4xl font-semibold mb-2">{completion}%</div>
             <div className="text-xs text-muted-foreground">{p.items.filter(i=>i.status==='DONE').length} / {p.items.length} actions terminées</div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader><CardTitle>Suggestions complémentaires</CardTitle></CardHeader>
+          <CardContent>
+            <div className="flex flex-col gap-2">
+              <div className="flex gap-2 flex-wrap">
+                <Button variant="outline" onClick={()=> generatePlanSuggestions && generatePlanSuggestions(assessment.id)}>Proposer</Button>
+                {plan?.suggestions?.length ? <Badge variant="secondary">{plan.suggestions.length} sugg.</Badge> : null}
+              </div>
+              {plan?.suggestions && plan.suggestions.length>0 ? (
+                <ul className="space-y-2 text-xs">
+                  {plan.suggestions.map((s:any)=>(
+                    <li key={s.id} className="border rounded p-2 bg-muted/30 flex flex-col gap-1">
+                      <div className="font-medium">{s.text}</div>
+                      <div className="text-[10px] text-muted-foreground">{s.rationale}</div>
+                      <div className="flex flex-wrap gap-2 text-[10px] text-muted-foreground">
+                        <span>Horizon {s.horizon}</span>
+                        <span>Impact {s.impact}</span>
+                        <span>Effort {s.effort}</span>
+                      </div>
+                      <div>
+                        <Button size="sm" variant="outline" className="h-6 text-[11px]" onClick={()=>{
+                          setPlan((pl:any)=> pl && pl.assessmentId===assessment.id ? ({ ...pl, items: [...pl.items, { id: s.id, ruleId: 'suggestion', horizon: s.horizon, text: s.text, impact: s.impact, effort: s.effort, linkedTo: s.linkedTo, status: 'OPEN' }], suggestions: pl.suggestions.filter(x=> x.id!==s.id) }) : pl);
+                        }}>Ajouter au plan</Button>
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              ) : <p className="text-xs text-muted-foreground">Aucune suggestion générée pour le moment.</p>}
+            </div>
           </CardContent>
         </Card>
 

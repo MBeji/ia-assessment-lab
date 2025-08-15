@@ -129,11 +129,22 @@ export interface PlanItem {
   mergedInto?: string; // id of primary action if merged
 }
 
+export interface PlanSuggestion {
+  id: string;
+  text: string;
+  rationale: string;
+  horizon: Horizon;
+  impact: ImpactLevel;
+  effort: EffortLevel;
+  linkedTo: { categoryId?: string; questionId?: string };
+}
+
 export interface Plan {
   id: string;
   assessmentId: string;
   items: PlanItem[];
   executiveSummary?: string; // generated concise summary
+  suggestions?: PlanSuggestion[]; // complementary suggestions not yet accepted
 }
 
 export interface QuestionnaireTemplate {

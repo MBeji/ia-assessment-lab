@@ -12,6 +12,10 @@ import {
   ResponseRow,
   Scorecard,
   MaturityLevel,
+  PlanSuggestion,
+  ImpactLevel,
+  EffortLevel,
+  Horizon,
 } from "@/types";
 import { DEPT_DEFAULT_WEIGHTS, SEED_CATEGORIES, SEED_DEPARTMENTS, SEED_QUESTIONS, SEED_RULES } from "@/data/seeds";
 import { upsertAssessment as supaUpsertAssessment, upsertResponses as supaUpsertResponses, listAssessments as supaListAssessments, fetchResponses as supaFetchResponses, saveScorePlan as supaSaveScorePlan } from '@/lib/supabaseStorage';
@@ -48,6 +52,7 @@ interface AssessmentContextValue extends AppStateSnapshot {
   exportPlanCSV: (id: string) => void;
   exportPlanXLSX: (id: string) => void;
   generateExecutiveSummary: (id: string) => string | undefined;
+  generatePlanSuggestions?: (id: string) => void;
   closeDepartment: (assessmentId: string, dept: DepartmentId) => void;
   reopenDepartment: (assessmentId: string, dept: DepartmentId) => void;
   isDepartmentClosed: (assessmentId: string, dept: DepartmentId) => boolean;
@@ -696,6 +701,47 @@ export const AssessmentProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     return summary;
   };
 
+  const generatePlanSuggestions = (id: string) => {
+    const a = assessments.find(x=>x.id===id) || (assessment?.id===id ? assessment : undefined);
+    if(!a) return;
+    const sc = scorecard && scorecard.assessmentId===id ? scorecard : (a.id===assessment?.id ? scorecard : undefined);
+    if(!sc) return;
+    const pl = plan && plan.assessmentId===id ? plan : undefined;
+    if(!pl) return;
+    // Heuristic: for lowest scoring categories (<55%), propose up to 2 generic improvement suggestions based on low-scoring questions (<3 likert)
+    const catScoresArr = Object.entries(sc.categoryScores).sort((a,b)=> a[1]-b[1]);
+    const lowCats = catScoresArr.filter(([_,v])=> v < 55).slice(0,4);
+    const existingTexts = new Set(pl.items.map(i=> i.text.toLowerCase()));
+    const suggestions: PlanSuggestion[] = [];
+    lowCats.forEach(([cid, pct]) => {
+      const catQuestions = (a.questionsSnapshot||questions).filter(q=> q.categoryId===cid);
+      // compute avg per question across depts
+      const qScores = catQuestions.map(q => {
+        const rs = responses.filter(r => r.assessmentId===a.id && r.questionId===q.id && !r.isNA && r.value!=null);
+        const avg = rs.length? rs.reduce((s,r)=> s+(r.value||0),0)/rs.length : 0;
+        return { q, avg };
+      }).filter(x=> x.avg>0);
+      qScores.sort((a,b)=> a.avg - b.avg);
+      qScores.slice(0,2).forEach(({q, avg}) => {
+        const base = q.text.split(/[:.!?]/)[0].trim();
+        if(existingTexts.has(base.toLowerCase())) return;
+        const impact: ImpactLevel = 'H';
+        const effort: EffortLevel = 'M';
+        const horizon: Horizon = pct < 40 ? '0-90j' : '3-6m';
+        suggestions.push({
+          id: genId(),
+          text: `Améliorer ${base}`,
+          rationale: `Question faible (${avg.toFixed(1)}/5) dans catégorie à ${Math.round(pct)}%`,
+          horizon,
+          impact,
+          effort,
+          linkedTo: { categoryId: cid, questionId: q.id }
+        });
+      });
+    });
+    setPlan(prev => prev && prev.assessmentId===id ? { ...prev, suggestions } : prev);
+  };
+
   const getScoreHistory = (assessmentId: string) => scoreHistories[assessmentId] || [];
 
   const addQuestion = (q: Question) => {
@@ -886,6 +932,7 @@ export const AssessmentProvider: React.FC<{ children: React.ReactNode }> = ({ ch
   exportPlanCSV,
   exportPlanXLSX,
   generateExecutiveSummary,
+  generatePlanSuggestions,
   closeDepartment,
   reopenDepartment,
   isDepartmentClosed,
