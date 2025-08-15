@@ -5,11 +5,13 @@ import { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from '@/components/ui/dropdown-menu';
+import { MoreHorizontal, BarChart2, ClipboardList, Edit3, RotateCcw } from 'lucide-react';
 
 const statusLabel = (a: any) => a.completedAt ? 'Clôturée' : 'En cours';
 
 const Missions = () => {
-  const { assessments, selectAssessment, getAssessmentProgress, getAssessmentScorecard, exportAssessment, closeAssessment, deleteAssessment } = useAssessment();
+  const { assessments, selectAssessment, getAssessmentProgress, getAssessmentScorecard, exportAssessment, closeAssessment, deleteAssessment, reopenAssessment, plan } = useAssessment() as any;
   const nav = useNavigate();
   const [query, setQuery] = useState('');
   const [sort, setSort] = useState<'updated'|'score'|'progress'>('updated');
@@ -71,13 +73,21 @@ const Missions = () => {
               <CardContent className="space-y-3 text-xs">
                 <div className="h-2 w-full bg-muted rounded overflow-hidden"><div className="h-full bg-primary" style={{width: pct+'%'}}/></div>
                 <p>Progression: {pct}% · Questions: {prog.answered}/{prog.total}</p>
-                <div className="flex flex-wrap gap-1 pt-1">
-                  <Button size="sm" variant="secondary" onClick={(e)=> { e.stopPropagation(); selectAssessment(a.id); nav('/questionnaire'); }}>Ouvrir</Button>
-                  <Button size="sm" onClick={(e)=> { e.stopPropagation(); selectAssessment(a.id); nav('/resultats'); }}>Résultats</Button>
-                  <Button size="sm" onClick={(e)=> { e.stopPropagation(); selectAssessment(a.id); nav('/plan'); }}>Plan</Button>
-                  <Button size="sm" onClick={(e)=> { e.stopPropagation(); exportAssessment(a.id); }}>Exporter</Button>
-                  {!a.completedAt && <Button size="sm" variant="outline" onClick={(e)=> { e.stopPropagation(); closeAssessment(a.id); }}>Clôturer</Button>}
-                  <Button size="sm" variant="destructive" onClick={(e)=> { e.stopPropagation(); if(confirm('Supprimer ?')) deleteAssessment(a.id); }}>Suppr.</Button>
+                <div className="flex items-center gap-2 pt-1">
+                  <Button size="icon" variant="secondary" className="h-7 w-7" title="Questionnaire" onClick={(e)=> { e.stopPropagation(); selectAssessment(a.id); nav('/questionnaire'); }}><Edit3 className="h-3.5 w-3.5" /></Button>
+                  <Button size="icon" variant="outline" className="h-7 w-7" title="Résultats" onClick={(e)=> { e.stopPropagation(); selectAssessment(a.id); nav('/resultats'); }}><BarChart2 className="h-3.5 w-3.5" /></Button>
+                  <Button size="icon" variant="outline" className="h-7 w-7" title="Plan" onClick={(e)=> { e.stopPropagation(); selectAssessment(a.id); nav('/plan'); }}><ClipboardList className="h-3.5 w-3.5" /></Button>
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button size="icon" variant="ghost" className="h-7 w-7" onClick={(e)=> e.stopPropagation()}><MoreHorizontal className="h-4 w-4" /></Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                      <DropdownMenuItem onClick={()=> { selectAssessment(a.id); exportAssessment(a.id); }}>Exporter</DropdownMenuItem>
+                      {!a.completedAt && <DropdownMenuItem onClick={()=> closeAssessment(a.id)}>Clôturer</DropdownMenuItem>}
+                      {a.completedAt && <DropdownMenuItem onClick={()=> reopenAssessment(a.id)}><RotateCcw className="h-3 w-3 mr-1" />Réouvrir</DropdownMenuItem>}
+                      <DropdownMenuItem onClick={()=> { if(confirm('Supprimer ?')) deleteAssessment(a.id); }}>Supprimer</DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
                 </div>
               </CardContent>
             </Card>
