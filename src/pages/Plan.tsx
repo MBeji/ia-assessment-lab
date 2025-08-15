@@ -17,6 +17,8 @@ const Plan = () => {
   const [search, setSearch] = useState("");
   const [filterStatus, setFilterStatus] = useState<'all'|'active'|'archived'>('all');
   const [sortBy, setSortBy] = useState<'date_desc'|'date_asc'|'score_desc'|'score_asc'>('date_desc');
+  const [actionStatusFilter, setActionStatusFilter] = useState<'ALL'|'OPEN'|'IN_PROGRESS'|'DONE'>('ALL');
+  const [sortByPriority, setSortByPriority] = useState(true);
   useEffect(()=>{
     const map: Record<string,{score:number; maturity:string}> = {};
     assessments.forEach(a=>{ const sc = getAssessmentScorecard(a.id); if(sc) map[a.id] = { score: sc.globalScore, maturity: sc.maturityLevel }; });
@@ -92,11 +94,15 @@ const Plan = () => {
   useEffect(()=>{ if(sc && (!plan || plan.assessmentId!==assessment.id)) { try { generatePlan(sc); } catch{} } }, [sc?.assessmentId, plan?.assessmentId, assessment?.id]);
 
   const groups = useMemo(() => {
+    const filtered = actionStatusFilter==='ALL' ? p.items : p.items.filter(i => (i.status||'OPEN')===actionStatusFilter);
     const g: Record<string, typeof p.items> = { '0-90j': [], '3-6m': [], '6-12m': [] } as any;
-    p.items.forEach(i => g[i.horizon].push(i));
-    (Object.keys(g) as (keyof typeof g)[]).forEach(h => g[h].sort((a,b)=> (impactRank[b.impact]-impactRank[a.impact]) || (effortRank[a.effort]-effortRank[b.effort])));
+    filtered.forEach(i => g[i.horizon].push(i));
+    (Object.keys(g) as (keyof typeof g)[]).forEach(h => {
+      if (sortByPriority) g[h].sort((a,b)=> (b.priorityScore||0)-(a.priorityScore||0));
+      else g[h].sort((a,b)=> (impactRank[b.impact]-impactRank[a.impact]) || (effortRank[a.effort]-effortRank[b.effort]));
+    });
     return g;
-  }, [p]);
+  }, [p, actionStatusFilter, sortByPriority]);
 
   const quickWins = p.items.filter(i => (i.impact !== 'L') && (i.effort !== 'H'));
   const completion = p.items.length? Math.round(100 * (p.items.filter(i=> i.status==='DONE').length / p.items.length)) : 0;
@@ -142,17 +148,30 @@ const Plan = () => {
           </CardContent>
         </Card>
 
-        <div className="grid md:grid-cols-3 gap-6 mt-6">
+        <div className="flex flex-wrap items-center gap-3 mt-6 text-xs">
+          <div className="flex items-center gap-1">
+            <span className="text-muted-foreground">Filtre actions</span>
+            <select value={actionStatusFilter} onChange={e=> setActionStatusFilter(e.target.value as any)} className="h-7 border rounded bg-background px-1">
+              <option value="ALL">Toutes</option>
+              <option value="OPEN">Ouvertes</option>
+              <option value="IN_PROGRESS">En cours</option>
+              <option value="DONE">Terminées</option>
+            </select>
+          </div>
+          <button type="button" onClick={()=> setSortByPriority(s=> !s)} className="h-7 px-2 border rounded bg-background hover:bg-accent">Tri: {sortByPriority? 'Priorité' : 'Impact/Effort'}</button>
+          {actionStatusFilter!=='ALL' && <button type="button" onClick={()=> setActionStatusFilter('ALL')} className="h-7 px-2 border rounded bg-background hover:bg-accent">Reset filtre</button>}
+        </div>
+        <div className="grid md:grid-cols-3 gap-6 mt-4">
           {(['0-90j','3-6m','6-12m'] as const).map(h => (
             <Card key={h}>
               <CardHeader><CardTitle>{h}</CardTitle></CardHeader>
               <CardContent>
                 {groups[h].length ? (
                   <ol className="list-decimal pl-5 space-y-2">
-                    {groups[h].sort((a,b)=> (b.priorityScore||0)-(a.priorityScore||0)).map((i,idx)=>(
-                      <li key={i.id || idx} className="space-y-1">
+                    {groups[h].map((i,idx)=>(
+                      <li key={i.id || idx} className={`space-y-1 ${i.status==='DONE' ? 'opacity-60' : ''}`}>
                         <div className="flex items-start justify-between gap-2">
-                          <div className="font-medium leading-snug flex-1">
+                          <div className={`font-medium leading-snug flex-1 ${i.status==='DONE'? 'line-through' : ''}`}>
                             {i.text}
                             {i.duplicateGroupId && <span className="ml-2 text-[10px] px-1 py-0.5 rounded bg-amber-200 text-amber-900">Doublon {i.duplicateGroupId}</span>}
                           </div>
@@ -170,6 +189,7 @@ const Plan = () => {
                           <span>Effort {i.effort}</span>
                           {i.priorityScore!=null && <span>Priorité {i.priorityScore}</span>}
                           {i.deficiency!=null && <span>Déficit {(i.deficiency*100).toFixed(0)}%</span>}
+                          {i.status && <span>Status {i.status==='OPEN'?'O': i.status==='IN_PROGRESS'?'E':'T'}</span>}
                         </div>
                       </li>
                     ))}
