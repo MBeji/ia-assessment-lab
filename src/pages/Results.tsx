@@ -72,7 +72,7 @@ const Results = () => {
         <select
           className="h-8 rounded border bg-background px-2 text-sm min-w-[260px]"
           value={assessment?.id || ''}
-          onChange={e => { if(e.target.value) selectAssessment(e.target.value); }}
+          onChange={e => { if(e.target.value) { selectAssessment(e.target.value); } }}
         >
           <option value="" disabled>{filteredSorted.length? 'Sélectionner...' : 'Aucune mission'}</option>
           {filteredSorted.map(a => {
@@ -133,9 +133,12 @@ const Results = () => {
     );
   }
   // Force a compute after selection if none yet
-  useEffect(()=>{ if(assessment && !scorecard) { try { computeScores(); } catch{} } }, [assessment?.id, scorecard, computeScores]);
-  // Recompute scores when switching assessments if needed
-  const sc = scorecard || (()=>{ try { return computeScores(); } catch { return undefined; } })();
+  // Recompute every time assessment id changes to avoid stale scorecard
+  useEffect(()=>{ if(assessment){ try { computeScores(); } catch{} } }, [assessment?.id, computeScores]);
+  const sc = useMemo(()=> {
+    if(scorecard && assessment && scorecard.assessmentId===assessment.id) return scorecard;
+    try { return assessment ? computeScores() : undefined; } catch { return undefined; }
+  }, [scorecard, assessment?.id, computeScores]);
   const hasValidScorecard = !!sc && Object.keys(sc.categoryScores||{}).length>0;
 
   // Chart datasets (apply tag filter to radar; keep original scoring values, just hide unrelated categories)

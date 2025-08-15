@@ -90,10 +90,18 @@ const Plan = () => {
       </Layout>
     );
   }
-  useEffect(()=>{ if(assessment && !scorecard){ try { computeScores(); } catch{} } }, [assessment?.id, scorecard, computeScores]);
-  const sc = scorecard || (()=>{ try { return computeScores(); } catch { return undefined; } })();
-  const p = (plan && plan.assessmentId===assessment.id) ? plan : (sc ? generatePlan(sc) : undefined);
-  useEffect(()=>{ if(sc && (!plan || plan.assessmentId!==assessment.id)) { try { generatePlan(sc); } catch{} } }, [sc?.assessmentId, plan?.assessmentId, assessment?.id]);
+  // Recompute scores when assessment changes
+  useEffect(()=>{ if(assessment){ try { computeScores(); } catch{} } }, [assessment?.id, computeScores]);
+  const sc = useMemo(()=> {
+    if(scorecard && scorecard.assessmentId===assessment?.id) return scorecard;
+    try { return assessment ? computeScores() : undefined; } catch { return undefined; }
+  }, [scorecard, assessment?.id, computeScores]);
+  // Ensure plan regenerated for current assessment
+  useEffect(()=>{ if(sc && assessment && (!plan || plan.assessmentId!==assessment.id)) { try { generatePlan(sc); } catch{} } }, [sc?.assessmentId, assessment?.id]);
+  const p = useMemo(()=> {
+    if(plan && assessment && plan.assessmentId===assessment.id) return plan;
+    return sc ? generatePlan(sc) : undefined;
+  }, [plan, sc, assessment?.id]);
 
   const groups = useMemo(() => {
     const filtered = actionStatusFilter==='ALL' ? p.items : p.items.filter(i => (i.status||'OPEN')===actionStatusFilter);
