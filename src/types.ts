@@ -44,6 +44,7 @@ export interface Question {
   allowNA: boolean;
   references: string[];
   evidenceRequiredThreshold: number; // typically 4
+  tags?: string[]; // ex: Gouvernance, Ethique
 }
 
 export interface Assessment {
@@ -59,6 +60,8 @@ export interface Assessment {
   categoriesSnapshot?: Category[]; // preserve state at creation (for historical integrity)
   questionsSnapshot?: Question[];
   rulesSnapshot?: ActionRule[];
+  closedDepartments?: DepartmentId[]; // partiellement clôturés
+  categoryWeightsSnapshot?: Record<string, number>; // preserve category weights at time of closure if needed
 }
 
 export interface ResponseRow {
@@ -80,6 +83,11 @@ export interface Scorecard {
   aiCoreScore: number; // 0-100
   globalScore: number; // 0-100
   maturityLevel: MaturityLevel;
+}
+
+export interface ScoreHistoryEntry {
+  ts: string; // ISO
+  globalScore: number;
 }
 
 export type Horizon = "0-90j" | "3-6m" | "6-12m";
@@ -141,4 +149,6 @@ export interface AppStateSnapshot {
   rules: ActionRule[];
   departmentWeights: Partial<Record<DepartmentId, number>>; // default 1
   templateId?: string; // which questionnaire template is active
+  categoryWeights?: Record<string, number>; // custom poids catégories
+  scoreHistories?: Record<string, ScoreHistoryEntry[]>; // par assessment
 }

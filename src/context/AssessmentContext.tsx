@@ -32,6 +32,7 @@ interface AssessmentContextValue extends AppStateSnapshot {
   computeScores: () => Scorecard;
   generatePlan: (scorecard: Scorecard) => Plan;
   setDepartmentWeight: (dept: DepartmentId, weight: number) => void;
+  setCategoryWeight: (catId: string, weight: number) => void;
   addQuestion: (q: Question) => void;
   updateQuestion: (q: Partial<Question> & { id: string }) => void;
   removeQuestion: (id: string) => void;
@@ -44,6 +45,11 @@ interface AssessmentContextValue extends AppStateSnapshot {
   templateId: string;
   applyTemplate: (id: string, options?: { reset?: boolean }) => void;
   exportAssessment: (id: string) => void;
+  exportPlanCSV: (id: string) => void;
+  closeDepartment: (assessmentId: string, dept: DepartmentId) => void;
+  reopenDepartment: (assessmentId: string, dept: DepartmentId) => void;
+  isDepartmentClosed: (assessmentId: string, dept: DepartmentId) => boolean;
+  getScoreHistory: (assessmentId: string) => { ts: string; globalScore: number }[];
   syncAssessment?: (id: string) => Promise<void>;
   pullAssessments?: () => Promise<void>;
   syncState?: { status: 'idle' | 'saving'; lastSyncAt?: string };
@@ -62,11 +68,13 @@ export const AssessmentProvider: React.FC<{ children: React.ReactNode }> = ({ ch
   const [questions, setQuestions] = useState(SEED_QUESTIONS);
   const [rules, setRules] = useState<ActionRule[]>(SEED_RULES);
   const [departmentWeights, setDepartmentWeights] = useState<AppStateSnapshot["departmentWeights"]>(DEPT_DEFAULT_WEIGHTS);
+  const [categoryWeights, setCategoryWeights] = useState<Record<string, number>>({});
   const [scorecard, setScorecard] = useState<Scorecard | undefined>();
   const [plan, setPlan] = useState<Plan | undefined>();
   const [templateId, setTemplateIdState] = useState<string>(TEMPLATES[0]?.id || "");
   const [syncState, setSyncState] = useState<{ status: 'idle' | 'saving'; lastSyncAt?: string }>({ status: 'idle' });
   const syncDebounceRef = React.useRef<any>();
+  const [scoreHistories, setScoreHistories] = useState<Record<string, { ts: string; globalScore: number }[]>>({});
 
   // Restore from localStorage
   useEffect(() => {
@@ -86,40 +94,76 @@ export const AssessmentProvider: React.FC<{ children: React.ReactNode }> = ({ ch
         setRules(parsed.rules || SEED_RULES);
         setDepartmentWeights(parsed.departmentWeights || DEPT_DEFAULT_WEIGHTS);
   if (parsed.templateId) setTemplateIdState(parsed.templateId);
+  if (parsed.categoryWeights) setCategoryWeights(parsed.categoryWeights);
+  if (parsed.scoreHistories) setScoreHistories(parsed.scoreHistories);
       } catch {}
     }
-    // Inject a fictive archived mission if none present
+    // Inject demo missions (one closed, one open) if absent
     setAssessments(prev => {
-      if (prev.some(a => a.id === 'demo_assessment')) return prev;
+      let next = [...prev];
+      const tpl = TEMPLATES[0];
       const now = new Date().toISOString();
-      const demo: Assessment = {
-        id: 'demo_assessment',
-        orgId: 'demo_org',
-        assessorName: 'Demo',
-        assessorEmail: 'demo@example.com',
-        selectedDepartments: ['DG'] as any,
-        startedAt: now,
-        updatedAt: now,
-        completedAt: now,
-        templateId: TEMPLATES[0]?.id,
-        categoriesSnapshot: TEMPLATES[0]?.categories,
-        questionsSnapshot: TEMPLATES[0]?.questions,
-        rulesSnapshot: TEMPLATES[0]?.rules,
-      };
-      // Also inject a few synthetic responses (non-NA) so charts/plan show quelque chose
-      const demoQuestions = (TEMPLATES[0]?.questions || []).slice(0, 12);
-      setResponses(prevR => [
-        ...prevR,
-        ...demoQuestions.map((q, idx) => ({
-          id: `demo_resp_${idx}`,
-          assessmentId: 'demo_assessment',
-          questionId: q.id,
-          departmentId: 'DG' as any,
-          value: (idx % 5) + 1,
-          isNA: false,
-        }))
-      ]);
-      return [demo, ...prev];
+      if (!next.some(a => a.id === 'demo_assessment') && tpl) {
+        const demo: Assessment = {
+          id: 'demo_assessment',
+          orgId: 'demo_org',
+          assessorName: 'Demo',
+          assessorEmail: 'demo@example.com',
+          selectedDepartments: ['DG'] as any,
+          startedAt: now,
+          updatedAt: now,
+          completedAt: now,
+          templateId: tpl.id,
+          categoriesSnapshot: tpl.categories,
+          questionsSnapshot: tpl.questions,
+          rulesSnapshot: tpl.rules,
+        };
+        // subset of questions for quick sample
+        const demoQuestions = (tpl.questions || []).slice(0, 12);
+        setResponses(prevR => ([
+          ...prevR,
+          ...demoQuestions.map((q, idx) => ({
+            id: `demo_resp_${idx}`,
+            assessmentId: 'demo_assessment',
+            questionId: q.id,
+            departmentId: 'DG' as any,
+            value: (idx % 5) + 1,
+            isNA: false,
+          }))
+        ]));
+        next = [demo, ...next];
+      }
+      if (!next.some(a => a.id === 'demo_assessment2') && tpl) {
+        const demo2: Assessment = {
+          id: 'demo_assessment2',
+          orgId: 'demo_org2',
+          assessorName: 'Exemple',
+          assessorEmail: 'exemple@example.com',
+          selectedDepartments: ['DG'] as any,
+          startedAt: now,
+          updatedAt: now,
+          templateId: tpl.id,
+          categoriesSnapshot: tpl.categories,
+          questionsSnapshot: tpl.questions,
+          rulesSnapshot: tpl.rules,
+        };
+        // Fill ALL questions with low values 1 or 2
+        const allQs = tpl.questions || [];
+        setResponses(prevR => ([
+          ...prevR,
+          ...allQs.map((q, idx) => ({
+            id: `demo2_resp_${idx}`,
+            assessmentId: 'demo_assessment2',
+            questionId: q.id,
+            departmentId: 'DG' as any,
+            value: (idx % 2) + 1, // alternates 1 / 2
+            isNA: false,
+          }))
+        ]));
+        // Put second demo after first for ordering
+        next = [demo2, ...next];
+      }
+      return next;
     });
   }, []);
 
@@ -137,10 +181,12 @@ export const AssessmentProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       questions,
       rules,
       departmentWeights,
+    categoryWeights,
+    scoreHistories,
     templateId,
     };
     localStorage.setItem(STORAGE_KEY, JSON.stringify(snapshot));
-  }, [organization, assessments, assessment, responses, scorecard, plan, categories, departments, questions, rules, departmentWeights, templateId]);
+  }, [organization, assessments, assessment, responses, scorecard, plan, categories, departments, questions, rules, departmentWeights, categoryWeights, scoreHistories, templateId]);
 
   // Initial remote pull if Supabase
   useEffect(()=>{ if(!USE_SUPABASE) return; (async()=>{ try {
@@ -234,6 +280,7 @@ export const AssessmentProvider: React.FC<{ children: React.ReactNode }> = ({ ch
 
   const updateResponse: AssessmentContextValue["updateResponse"] = (payload) => {
     if (!assessment) return;
+  if (assessment.closedDepartments && assessment.closedDepartments.includes(payload.departmentId)) return; // frozen
   setResponses(prev => {
       const existingIdx = prev.findIndex(r => r.assessmentId === assessment.id && r.questionId === payload.questionId && r.departmentId === payload.departmentId);
       const base: ResponseRow = {
@@ -299,6 +346,12 @@ export const AssessmentProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     cats.forEach(cat => {
       let sumPct=0,count=0; selected.forEach(d=>{ const den=byDeptByCatDen[d][cat.id]; if(den>0){ const avg=byDeptByCat[d][cat.id]/den; sumPct += (avg/5)*100; count++; } });
       categoryScores[cat.id] = count? sumPct/count : 0;
+    const localCatWeights: Record<string, number> = {};
+    cats.forEach(c=> localCatWeights[c.id] = categoryWeights[c.id] ?? 1);
+    cats.forEach(cat => {
+      let sumPct=0,count=0; selected.forEach(d=>{ const den=byDeptByCatDen[d][cat.id]; if(den>0){ const avg=byDeptByCat[d][cat.id]/den; sumPct += (avg/5)*100; count++; } });
+      categoryScores[cat.id] = count? sumPct/count : 0;
+    });
     });
     selected.forEach(d => {
       let sumPct=0,count=0; cats.forEach(cat=>{ const den=byDeptByCatDen[d][cat.id]; if(den>0){ const avg=byDeptByCat[d][cat.id]/den; sumPct += (avg/5)*100; count++; }});
@@ -355,6 +408,20 @@ export const AssessmentProvider: React.FC<{ children: React.ReactNode }> = ({ ch
         }
       });
       categoryScores[cat.id] = count > 0 ? sumPct / count : 0;
+    const catWeights: Record<string, number> = {};
+    categories.forEach(c=> catWeights[c.id] = categoryWeights[c.id] ?? 1);
+    categories.forEach(cat => {
+      let sumPct = 0, count = 0;
+      selected.forEach(d => {
+        const den = byDeptByCatDen[d][cat.id];
+        if (den > 0) {
+          const avg = byDeptByCat[d][cat.id] / den; // 0..5
+          const pct = (avg / 5) * 100;
+          sumPct += pct; count += 1;
+        }
+      });
+      categoryScores[cat.id] = count > 0 ? sumPct / count : 0;
+    });
     });
 
     // per-department score
@@ -369,12 +436,48 @@ export const AssessmentProvider: React.FC<{ children: React.ReactNode }> = ({ ch
         }
       });
       departmentScores[d] = count > 0 ? sumPct / count : 0;
+    const catWeights2: Record<string, number> = {};
+    categories.forEach(c=> catWeights2[c.id] = categoryWeights[c.id] ?? 1);
+    categories.forEach(cat => {
+      let sumWeighted = 0, weightSum = 0; // we still compute dept average then average; weights apply later at aggregation stage
+      let sumPct = 0, count = 0;
+      selected.forEach(d => {
+        const den = byDeptByCatDen[d][cat.id];
+        if (den > 0) {
+          const avg = byDeptByCat[d][cat.id] / den; // 0..5
+          const pct = (avg / 5) * 100;
+          sumPct += pct; count += 1; sumWeighted += pct; weightSum += 1; // same for now
+        }
+      });
+      categoryScores[cat.id] = count > 0 ? sumPct / count : 0;
+    });
+    const catWeights3: Record<string, number> = {};
+    categories.forEach(c=> catWeights3[c.id] = categoryWeights[c.id] ?? 1);
+    categories.forEach(cat => {
+      let sumPct = 0, count = 0;
+      selected.forEach(d2 => { /* noop for dept weight here */ });
+    });
+    // compute departmentScores with category weights
+    selected.forEach(d => {
+      let wSumCat=0, wxCat=0;
+      categories.forEach(cat => {
+        const den = byDeptByCatDen[d][cat.id];
+        if (den > 0) {
+          const avg = byDeptByCat[d][cat.id] / den;
+          const pct = (avg / 5) * 100;
+          const w = catWeights3[cat.id] ?? 1;
+          wSumCat += w; wxCat += pct * w;
+        }
+      });
+      departmentScores[d] = wSumCat>0 ? wxCat / wSumCat : 0;
+    });
     });
 
     // AI core score: mean of all categories (transverses)
-    const aiCoreScore = categories.length ? (
-      Object.values(categoryScores).reduce((a, b) => a + b, 0) / categories.length
-    ) : 0;
+  // Weighted AI core score
+  let wCatSum = 0, wCatX = 0;
+  categories.forEach(cat => { const w = categoryWeights[cat.id] ?? 1; wCatSum += w; wCatX += (categoryScores[cat.id]||0)*w; });
+  const aiCoreScore = wCatSum>0 ? wCatX / wCatSum : 0;
 
     // global score weighted by department weights
     let wSum = 0, wx = 0;
@@ -391,6 +494,12 @@ export const AssessmentProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       maturityLevel: maturityFromScore(globalScore),
     };
     setScorecard(sc);
+    // push score history entry
+    setScoreHistories(prev => {
+      const list = prev[assessment.id] || [];
+      if (list.length && Math.abs(list[list.length-1].globalScore - sc.globalScore) < 0.01) return prev; // avoid duplicates
+      return { ...prev, [assessment.id]: [...list, { ts: new Date().toISOString(), globalScore: sc.globalScore }] };
+    });
     return sc;
   };
 
@@ -439,6 +548,36 @@ export const AssessmentProvider: React.FC<{ children: React.ReactNode }> = ({ ch
   const setDepartmentWeight = (dept: DepartmentId, weight: number) => {
     setDepartmentWeights(prev => ({ ...prev, [dept]: weight }));
   };
+  const setCategoryWeight = (catId: string, weight: number) => {
+    setCategoryWeights(prev => ({ ...prev, [catId]: weight }));
+  };
+
+  const closeDepartment = (assessmentId: string, dept: DepartmentId) => {
+    setAssessments(prev => prev.map(a => a.id===assessmentId ? { ...a, closedDepartments: Array.from(new Set([...(a.closedDepartments||[]), dept])) } : a));
+    if (assessment?.id === assessmentId) setAssessment(a => a ? { ...a, closedDepartments: Array.from(new Set([...(a.closedDepartments||[]), dept])) } : a);
+  };
+  const reopenDepartment = (assessmentId: string, dept: DepartmentId) => {
+    setAssessments(prev => prev.map(a => a.id===assessmentId ? { ...a, closedDepartments: (a.closedDepartments||[]).filter(d=>d!==dept) } : a));
+    if (assessment?.id === assessmentId) setAssessment(a => a ? { ...a, closedDepartments: (a.closedDepartments||[]).filter(d=>d!==dept) } : a);
+  };
+  const isDepartmentClosed = (assessmentId: string, dept: DepartmentId) => {
+    const a = assessments.find(x=>x.id===assessmentId) || (assessment?.id===assessmentId ? assessment : undefined);
+    return !!a?.closedDepartments?.includes(dept);
+  };
+
+  const exportPlanCSV = (id: string) => {
+    const a = assessments.find(x=>x.id===id) || (assessment?.id===id ? assessment : undefined);
+    if (!a) return;
+    const pl = plan && plan.assessmentId===id ? plan : (scorecard && scorecard.assessmentId===id ? generatePlan(scorecard) : undefined);
+    if(!pl) return;
+    const headers = ['Horizon','Texte','Impact','Effort','Catégorie','Question'];
+    const rows = pl.items.map(it => [it.horizon, '"'+(it.text.replace(/"/g,'""'))+'"', it.impact, it.effort, it.linkedTo.categoryId||'', it.linkedTo.questionId||'']);
+    const csv = [headers.join(';'), ...rows.map(r=> r.join(';'))].join('\n');
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob); const ael = document.createElement('a'); ael.href=url; ael.download=`plan-${id.slice(0,6)}.csv`; ael.click(); URL.revokeObjectURL(url);
+  };
+
+  const getScoreHistory = (assessmentId: string) => scoreHistories[assessmentId] || [];
 
   const addQuestion = (q: Question) => {
     setQuestions(prev => [q, ...prev]);
@@ -609,6 +748,7 @@ export const AssessmentProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     computeScores,
     generatePlan,
     setDepartmentWeight,
+    setCategoryWeight,
     addQuestion,
   updateQuestion,
   removeQuestion,
@@ -624,6 +764,13 @@ export const AssessmentProvider: React.FC<{ children: React.ReactNode }> = ({ ch
   closeAssessment,
   deleteAssessment,
   exportAssessment,
+  exportPlanCSV,
+  closeDepartment,
+  reopenDepartment,
+  isDepartmentClosed,
+  getScoreHistory,
+  categoryWeights,
+  scoreHistories,
   syncAssessment: async (id: string) => { await syncAssessmentInternal(id); },
   pullAssessments: async () => { if(!USE_SUPABASE) return; const remote = await supaListAssessments(); setAssessments(remote); },
   syncState,
