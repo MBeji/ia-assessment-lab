@@ -11,7 +11,7 @@ import { ImportExport } from "@/components/ImportExport";
 import { exportJSON } from "@/lib/export";
 
 const Admin = () => {
-  const { categories, questions, templates, templateId, applyTemplate, addQuestion, updateQuestion, removeQuestion, setDepartmentWeight, departmentWeights, departments } = useAssessment();
+  const { categories, questions, templates, templateId, applyTemplate, addQuestion, updateQuestion, removeQuestion, setDepartmentWeight, departmentWeights, departments, setCategoryWeight, categoryWeights, assessment, closeDepartment, reopenDepartment, isDepartmentClosed } = useAssessment() as any;
 
   const [selectedTemplate, setSelectedTemplate] = useState<string>(templateId);
   const template = useMemo(()=> templates.find(t => t.id === selectedTemplate), [templates, selectedTemplate]);
@@ -136,6 +136,41 @@ const Admin = () => {
           </CardContent>
         </Card>
 
+        <Card>
+          <CardHeader>
+            <CardTitle>Poids des catégories</CardTitle>
+            <CardDescription>Pondération des scores par catégorie (1 par défaut).</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            {categories.map(c => (
+              <div key={c.id} className="grid grid-cols-2 items-center gap-3">
+                <Label htmlFor={`cw-${c.id}`}>{c.name}</Label>
+                <Input id={`cw-${c.id}`} type="number" step="0.1" value={categoryWeights[c.id] ?? 1} onChange={e=> setCategoryWeight(c.id, Number(e.target.value)||1)} />
+              </div>
+            ))}
+          </CardContent>
+        </Card>
+
+        {assessment && (
+          <Card>
+            <CardHeader>
+              <CardTitle>Clôture partielle des départements</CardTitle>
+              <CardDescription>Empêche toute modification des réponses du département.</CardDescription>
+            </CardHeader>
+            <CardContent className="flex flex-wrap gap-2">
+              {assessment.selectedDepartments.map((d:string) => {
+                const closed = isDepartmentClosed(assessment.id, d);
+                return (
+                  <Button key={d} size="sm" variant={closed? 'secondary':'outline'} onClick={()=> closed ? reopenDepartment(assessment.id, d) : closeDepartment(assessment.id, d)}>
+                    {closed ? `Réouvrir ${d}` : `Clôturer ${d}`}
+                  </Button>
+                );
+              })}
+              {!assessment.selectedDepartments.length && <p className="text-xs text-muted-foreground">Aucun département sélectionné pour cette mission.</p>}
+            </CardContent>
+          </Card>
+        )}
+
         <Card className="md:col-span-2">
           <CardHeader>
             <CardTitle>Questions du modèle</CardTitle>
@@ -146,7 +181,7 @@ const Admin = () => {
             {templateQuestions.map(q => {
               const dup = codeCounts[q.code.trim().toLowerCase()] > 1;
               return (
-              <div key={q.id} className={`border rounded-md p-3 grid md:grid-cols-7 gap-2 items-start ${dup ? 'border-destructive' : ''}`}>
+              <div key={q.id} className={`border rounded-md p-3 grid md:grid-cols-8 gap-2 items-start ${dup ? 'border-destructive' : ''}`}>
                 <div className="md:col-span-2">
                   <Label>Code</Label>
                   <Input value={q.code} onChange={(e)=> updateQuestion({ id: q.id, code: e.target.value })} className={dup ? 'border-destructive' : ''} />
@@ -164,6 +199,13 @@ const Admin = () => {
                 </div>
                 <div className="md:col-span-1 flex items-end gap-2">
                   <Button variant="destructive" onClick={()=> removeQuestion(q.id)}>Supprimer</Button>
+                </div>
+                <div className="md:col-span-1">
+                  <Label>Tags</Label>
+                  <Input value={(q.tags||[]).join(',')} placeholder="gouvernance,ethique" onChange={(e)=> {
+                    const tags = e.target.value.split(',').map(t=> t.trim()).filter(Boolean);
+                    updateQuestion({ id: q.id, tags });
+                  }} />
                 </div>
                 <div className="md:col-span-7">
                   <Label>Départements concernés</Label>

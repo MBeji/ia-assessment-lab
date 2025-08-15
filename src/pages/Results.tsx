@@ -12,10 +12,14 @@ const ScoreGauge = lazy(()=> import('@/components/charts/ScoreGauge').then(m=>({
 const RadarByCategory = lazy(()=> import('@/components/charts/RadarByCategory').then(m=>({ default: m.RadarByCategory })));
 const BarByDepartment = lazy(()=> import('@/components/charts/BarByDepartment').then(m=>({ default: m.BarByDepartment })));
 const HeatmapQuestions = lazy(()=> import('@/components/charts/HeatmapQuestions').then(m=>({ default: m.HeatmapQuestions })));
+const ScoreHistory = lazy(()=> import('@/components/charts/ScoreHistory').then(m=>({ default: m.ScoreHistory })));
 
 const Results = () => {
   const nav = useNavigate();
-  const { assessment, categories, departments, responses, computeScores, scorecard, questions, generatePlan, assessments, selectAssessment, getAssessmentScorecard, getAssessmentProgress } = useAssessment();
+  const { assessment, categories, departments, responses, computeScores, scorecard, questions, generatePlan, assessments, selectAssessment, getAssessmentScorecard, getAssessmentProgress, closeDepartment, reopenDepartment, isDepartmentClosed } = useAssessment() as any;
+  const { getScoreHistory } = useAssessment() as any;
+  const allTags = useMemo(()=> Array.from(new Set(questions.flatMap((q:any)=> q.tags||[]))).sort(), [questions]);
+  const [activeTags, setActiveTags] = useState<string[]>([]);
   const archived = assessments.filter(a => a.completedAt);
   const [summaries, setSummaries] = useState<Record<string,{score:number; maturity:string}>>({});
 
@@ -102,6 +106,19 @@ const Results = () => {
             value={search}
             onChange={e=> setSearch(e.target.value)}
           />
+          {allTags.length>0 && <div className="flex items-center gap-1">
+            <span className="text-muted-foreground">Tags</span>
+            <div className="flex flex-wrap gap-1 max-w-[260px]">
+              {allTags.map(tgRaw => {
+                const tag = String(tgRaw);
+                const active = activeTags.includes(tag);
+                return (
+                  <button key={tag} type="button" onClick={()=> setActiveTags(a => (active ? a.filter(t=>t!==tag) : [...a, tag]))} className={`px-2 py-0.5 rounded text-[10px] border ${active ? 'bg-primary text-primary-foreground' : 'bg-background hover:bg-accent'}`}>{tag}</button>
+                );
+              })}
+              {activeTags.length>0 && <button type="button" onClick={()=> setActiveTags([])} className="px-2 py-0.5 rounded text-[10px] border bg-destructive text-destructive-foreground">Reset</button>}
+            </div>
+          </div>}
         </div>
       </div>
     </div>
@@ -131,11 +148,13 @@ const Results = () => {
         question: questions.find(q => q.id === r.questionId)!,
         department: departments.find(dd => dd.id === r.departmentId)?.name || r.departmentId,
         value: r.value ?? 0,
-      }));
-  }, [responses, assessment.id, questions, departments]);
+      }))
+      .filter(item => activeTags.length===0 || (item.question.tags||[]).some((t:string)=> activeTags.includes(t)));
+  }, [responses, assessment.id, questions, departments, activeTags]);
 
   const topCats = sc ? [...categories].sort((a,b)=> (sc.categoryScores[b.id]||0)-(sc.categoryScores[a.id]||0)).slice(0,3) : [];
   const lowCats = sc ? [...categories].sort((a,b)=> (sc.categoryScores[a.id]||0)-(sc.categoryScores[b.id]||0)).slice(0,3) : [];
+  const history = assessment ? getScoreHistory(assessment.id) : [];
 
   // Coverage computation: total relevant questions vs answered (non-NA)
   const totalRelevant = assessment.selectedDepartments.reduce((acc, d) => acc + questions.filter(q => q.categoryId && (q.appliesToDepartments.includes('ALL') || q.appliesToDepartments.includes(d))).length, 0);
@@ -215,6 +234,7 @@ const Results = () => {
         <Card>
           <CardHeader>
             <CardTitle>Questions critiques (≤ 2)</CardTitle>
+            {activeTags.length>0 && <CardDescription>Filtrées: {activeTags.join(', ')}</CardDescription>}
           </CardHeader>
           <CardContent>
             <Suspense fallback={<div className="text-xs text-muted-foreground">Chargement liste...</div>}>
@@ -223,6 +243,33 @@ const Results = () => {
           </CardContent>
         </Card>
   </div>}
+
+  {assessment && !assessment.completedAt && (
+    <div className="mt-6 border rounded p-4 space-y-2">
+      <div className="text-xs font-semibold uppercase text-muted-foreground">Clôture partielle</div>
+      <div className="flex flex-wrap gap-2">
+        {assessment.selectedDepartments.map((d:string)=> {
+          const closed = isDepartmentClosed(assessment.id,d);
+          return <button key={d} onClick={()=> closed ? reopenDepartment(assessment.id,d) : closeDepartment(assessment.id,d)} className={`px-3 py-1 rounded text-xs border ${closed? 'bg-secondary':'bg-background hover:bg-accent'}`}>{closed? `Réouvrir ${d}`:`Clôturer ${d}`}</button>;
+        })}
+        {assessment.selectedDepartments.length===0 && <span className="text-[11px] text-muted-foreground">Aucun département</span>}
+      </div>
+    </div>
+  )}
+
+  {sc && <div className="grid md:grid-cols-2 gap-6 mt-6">
+        <Card>
+          <CardHeader>
+            <CardTitle>Historique du score global</CardTitle>
+            <CardDescription>Évolution dans le temps</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Suspense fallback={<div className="h-64 flex items-center justify-center text-xs text-muted-foreground">Chargement historique...</div>}>
+              <ScoreHistory data={history} />
+            </Suspense>
+          </CardContent>
+        </Card>
+      </div>}
 
   {sc && <div className="grid md:grid-cols-2 gap-6 mt-6">
         <Card>
