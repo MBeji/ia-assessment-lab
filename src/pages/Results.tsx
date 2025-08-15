@@ -13,6 +13,7 @@ const RadarByCategory = lazy(()=> import('@/components/charts/RadarByCategory').
 const BarByDepartment = lazy(()=> import('@/components/charts/BarByDepartment').then(m=>({ default: m.BarByDepartment })));
 const HeatmapQuestions = lazy(()=> import('@/components/charts/HeatmapQuestions').then(m=>({ default: m.HeatmapQuestions })));
 const ScoreHistory = lazy(()=> import('@/components/charts/ScoreHistory').then(m=>({ default: m.ScoreHistory })));
+import { Deferred } from '@/components/Deferred';
 
 const Results = () => {
   const nav = useNavigate();
@@ -203,16 +204,18 @@ const Results = () => {
       {!sc && (
         <div className="mb-6 text-sm text-muted-foreground">Aucune réponse exploitable encore pour calculer les scores.</div>
       )}
-      {sc && <div className="grid md:grid-cols-3 gap-6">
+      {sc && <div className="grid md:grid-cols-3 gap-4 md:gap-6">
         <Card className="md:col-span-1">
           <CardHeader>
             <CardTitle>Score global</CardTitle>
             <CardDescription>Niveau: {sc.maturityLevel}</CardDescription>
           </CardHeader>
           <CardContent>
-            <Suspense fallback={<div className="h-64 flex items-center justify-center text-xs text-muted-foreground">Chargement graphique...</div>}>
-              <ScoreGauge value={sc.globalScore} label="Global" />
-            </Suspense>
+            <Deferred height={220}>
+              <Suspense fallback={<div className="h-64 flex items-center justify-center text-xs text-muted-foreground">Chargement...</div>}>
+                <ScoreGauge value={sc.globalScore} label="Global" />
+              </Suspense>
+            </Deferred>
           </CardContent>
         </Card>
         <Card className="md:col-span-2">
@@ -221,23 +224,27 @@ const Results = () => {
             <CardDescription>Vue 0–100% {activeTags.length>0 && '(filtré par tags)'}</CardDescription>
           </CardHeader>
           <CardContent>
-            <Suspense fallback={<div className="h-80 flex items-center justify-center text-xs text-muted-foreground">Chargement radar...</div>}>
-              <RadarByCategory data={radarData} />
-            </Suspense>
+            <Deferred height={320}>
+              <Suspense fallback={<div className="h-80 flex items-center justify-center text-xs text-muted-foreground">Chargement...</div>}>
+                <RadarByCategory data={radarData} />
+              </Suspense>
+            </Deferred>
           </CardContent>
         </Card>
       </div>}
 
-  {sc && <div className="grid md:grid-cols-2 gap-6 mt-6">
+  {sc && <div className="grid md:grid-cols-2 gap-4 md:gap-6 mt-6">
         <Card>
           <CardHeader>
             <CardTitle>Scores par département</CardTitle>
             {activeTags.length>0 && <CardDescription>Filtre visuel tags actif (scores globaux inchangés)</CardDescription>}
           </CardHeader>
           <CardContent>
-            <Suspense fallback={<div className="h-72 flex items-center justify-center text-xs text-muted-foreground">Chargement barres...</div>}>
-              <BarByDepartment data={barData} />
-            </Suspense>
+            <Deferred height={260}>
+              <Suspense fallback={<div className="h-72 flex items-center justify-center text-xs text-muted-foreground">Chargement...</div>}>
+                <BarByDepartment data={barData} />
+              </Suspense>
+            </Deferred>
           </CardContent>
         </Card>
         <Card>
@@ -246,9 +253,11 @@ const Results = () => {
             {activeTags.length>0 && <CardDescription>Filtrées: {activeTags.join(', ')}</CardDescription>}
           </CardHeader>
           <CardContent>
-            <Suspense fallback={<div className="text-xs text-muted-foreground">Chargement liste...</div>}>
-              <HeatmapQuestions critical={critical} />
-            </Suspense>
+            <Deferred height={220}>
+              <Suspense fallback={<div className="text-xs text-muted-foreground">Chargement...</div>}>
+                <HeatmapQuestions critical={critical} />
+              </Suspense>
+            </Deferred>
           </CardContent>
         </Card>
   </div>}
@@ -266,21 +275,23 @@ const Results = () => {
     </div>
   )}
 
-  {sc && <div className="grid md:grid-cols-2 gap-6 mt-6">
+  {sc && <div className="grid md:grid-cols-2 gap-4 md:gap-6 mt-6">
         <Card>
           <CardHeader>
             <CardTitle>Historique du score global</CardTitle>
             <CardDescription>Évolution dans le temps</CardDescription>
           </CardHeader>
           <CardContent>
-            <Suspense fallback={<div className="h-64 flex items-center justify-center text-xs text-muted-foreground">Chargement historique...</div>}>
-              <ScoreHistory data={history} />
-            </Suspense>
+            <Deferred height={260}>
+              <Suspense fallback={<div className="h-64 flex items-center justify-center text-xs text-muted-foreground">Chargement...</div>}>
+                <ScoreHistory data={history} />
+              </Suspense>
+            </Deferred>
           </CardContent>
         </Card>
       </div>}
 
-  {sc && <div className="grid md:grid-cols-2 gap-6 mt-6">
+  {sc && <div className="grid md:grid-cols-2 gap-4 md:gap-6 mt-6">
         <Card>
           <CardHeader><CardTitle>Top forces</CardTitle></CardHeader>
           <CardContent className="space-y-2">

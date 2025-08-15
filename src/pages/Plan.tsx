@@ -217,7 +217,7 @@ const Plan = () => {
           {actionStatusFilter!=='ALL' && <button type="button" onClick={()=> setActionStatusFilter('ALL')} className="h-7 px-2 border rounded bg-background hover:bg-accent">Reset filtre</button>}
         </div>
         {kanbanMode && <KanbanActions plan={p} setPlan={setPlan} />}
-        {!kanbanMode && <div className="grid md:grid-cols-3 gap-6 mt-4">
+  {!kanbanMode && <div className="grid md:grid-cols-3 gap-4 md:gap-6 mt-4">
           {(['0-90j','3-6m','6-12m'] as const).map(h => (
             <Card key={h}>
               <CardHeader><CardTitle>{h}</CardTitle></CardHeader>

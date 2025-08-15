@@ -58,11 +58,11 @@ const Missions = () => {
           </div>
         </div>
       </div>
-      <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
+  <div className="grid gap-4 md:gap-6 md:grid-cols-2 xl:grid-cols-3">
         {list.map(({a, prog, sc}) => {
           const pct = Math.round(prog.ratio*100);
           return (
-            <Card key={a.id} className="relative cursor-pointer" onClick={(e)=> { e.stopPropagation(); selectAssessment(a.id); nav('/questionnaire'); }}>
+            <Card key={a.id} className="relative cursor-pointer transition hover:shadow-sm active:scale-[0.98]" onClick={(e)=> { e.stopPropagation(); selectAssessment(a.id); nav('/questionnaire'); }}>
               <CardHeader className="pb-3">
                 <CardTitle className="text-base flex items-center gap-2">{a.orgId.slice(0,6)} <span className={`text-[10px] px-1 rounded ${a.completedAt ? 'bg-emerald-600 text-white' : 'bg-blue-600 text-white'}`}>{statusLabel(a)}</span></CardTitle>
                 <CardDescription className="text-xs flex flex-col gap-0.5">
