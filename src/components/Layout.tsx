@@ -1,6 +1,8 @@
-import { Link, NavLink } from "react-router-dom";
+import { Link, NavLink, useLocation } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { useState, useEffect } from 'react';
+import { Menu, X, Home, ClipboardList, BarChart2, ListChecks } from 'lucide-react';
 
 const navItems = [
   { to: "/", label: "Accueil" },
@@ -14,25 +16,45 @@ const navItems = [
 ];
 
 export const Layout: React.FC<{ children: React.ReactNode }>= ({ children }) => {
+  const [open, setOpen] = useState(false);
+  const location = useLocation();
+  // Close drawer on route change
+  useEffect(()=> { setOpen(false); }, [location.pathname]);
   return (
-    <div className="min-h-screen bg-gradient-to-b from-background to-muted/30">
+    <div className="min-h-screen bg-gradient-to-b from-background to-muted/30 flex flex-col">
       <header className="sticky top-0 z-40 border-b bg-background/80 backdrop-blur supports-[backdrop-filter]:bg-background/60">
         <div className="container mx-auto flex h-14 items-center justify-between px-4">
-          <Link to="/" className="font-semibold tracking-tight">SynapFlow</Link>
+          <div className="flex items-center gap-3">
+            <button aria-label={open? 'Fermer le menu' : 'Ouvrir le menu'} className="md:hidden inline-flex h-9 w-9 items-center justify-center rounded-md border hover:bg-accent" onClick={()=> setOpen(o=> !o)}>
+              {open? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+            </button>
+            <Link to="/" className="font-semibold tracking-tight">SynapFlow</Link>
+          </div>
           <nav className="hidden md:flex items-center gap-4 text-sm">
             {navItems.map((n) => (
               <NavLink key={n.to} to={n.to} className={({isActive}) => cn("px-2 py-1 rounded-md hover:bg-accent", isActive && "bg-accent text-accent-foreground")}>{n.label}</NavLink>
             ))}
           </nav>
           <div className="flex items-center gap-2">
-            <Button asChild variant="outline" size="sm"><Link to="/questionnaire">Commencer</Link></Button>
+            <Button asChild variant="outline" size="sm" className="hidden sm:inline-flex"><Link to="/questionnaire">Commencer</Link></Button>
           </div>
         </div>
+        {/* Mobile slide-over menu */}
+        {open && (
+          <div className="md:hidden absolute inset-x-0 top-14 z-30 border-b bg-background/95 backdrop-blur shadow-sm animate-in slide-in-from-top">
+            <div className="px-4 py-4 flex flex-col gap-1">
+              {navItems.map(n => (
+                <NavLink key={n.to} to={n.to} className={({isActive}) => cn("px-3 py-2 rounded-md text-sm flex items-center justify-between hover:bg-accent", isActive && "bg-accent text-accent-foreground")}>{n.label}</NavLink>
+              ))}
+              <Button asChild variant="secondary" size="sm" className="mt-2"><Link to="/questionnaire">Commencer l'évaluation</Link></Button>
+            </div>
+          </div>
+        )}
       </header>
-      <main className="container mx-auto px-4 py-8">
+      <main className="container mx-auto px-4 pt-6 pb-28 md:pb-10 flex-1 w-full">
         {children}
       </main>
-      <footer className="border-t py-6 text-sm text-muted-foreground">
+      <footer className="border-t py-6 text-sm text-muted-foreground hidden md:block">
         <div className="container mx-auto px-4 flex flex-col md:flex-row items-center justify-between gap-2">
           <p>© {new Date().getFullYear()} SynapFlow. Tous droits réservés.</p>
           <div className="flex items-center gap-4">
@@ -42,6 +64,33 @@ export const Layout: React.FC<{ children: React.ReactNode }>= ({ children }) => 
           </div>
         </div>
       </footer>
+      {/* Bottom mobile nav */}
+      <nav className="md:hidden fixed bottom-0 inset-x-0 z-40 border-t bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/70 pb-[env(safe-area-inset-bottom)]">
+        <ul className="flex items-stretch justify-around text-[11px]">
+          <MobileLink to="/" icon={<Home className="h-4 w-4" />} label="Accueil" />
+          <MobileLink to="/questionnaire" icon={<ClipboardList className="h-4 w-4" />} label="Quest." />
+          <MobileLink to="/resultats" icon={<BarChart2 className="h-4 w-4" />} label="Résult." />
+          <MobileLink to="/plan" icon={<ListChecks className="h-4 w-4" />} label="Plan" />
+          <MobileLink to="/missions" icon={<ClipboardList className="h-4 w-4" />} label="Missions" />
+        </ul>
+      </nav>
     </div>
+  );
+};
+
+const MobileLink: React.FC<{ to: string; icon: React.ReactNode; label: string }> = ({ to, icon, label }) => {
+  return (
+    <li className="flex-1">
+      <NavLink
+        to={to}
+        className={({isActive}) => cn(
+          "flex flex-col items-center justify-center gap-0.5 py-2 h-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+          isActive ? 'text-primary' : 'text-muted-foreground hover:text-foreground'
+        )}
+      >
+        {icon}
+        <span>{label}</span>
+      </NavLink>
+    </li>
   );
 };
