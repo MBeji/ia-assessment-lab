@@ -47,6 +47,7 @@ interface AssessmentContextValue extends AppStateSnapshot {
   exportAssessment: (id: string) => void;
   exportPlanCSV: (id: string) => void;
   exportPlanXLSX: (id: string) => void;
+  generateExecutiveSummary: (id: string) => string | undefined;
   closeDepartment: (assessmentId: string, dept: DepartmentId) => void;
   reopenDepartment: (assessmentId: string, dept: DepartmentId) => void;
   isDepartmentClosed: (assessmentId: string, dept: DepartmentId) => boolean;
@@ -668,6 +669,33 @@ export const AssessmentProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     }).catch(()=>{});
   };
 
+  const generateExecutiveSummary = (id: string) => {
+    const a = assessments.find(x=>x.id===id) || (assessment?.id===id ? assessment : undefined);
+    if(!a) return;
+    const sc = scorecard && scorecard.assessmentId===id ? scorecard : (a.id===assessment?.id ? scorecard : undefined);
+    const pl = plan && plan.assessmentId===id ? plan : undefined;
+    if(!sc || !pl) return;
+    // Derive top 3 strengths (highest categories) and top 3 gaps (lowest categories)
+    const catScores = Object.entries(sc.categoryScores).map(([cid,val])=>({ cid, val }));
+    catScores.sort((a,b)=> b.val - a.val);
+    const strengths = catScores.slice(0,3);
+    const gaps = [...catScores].reverse().slice(0,3);
+    // High priority actions (top 5 by priorityScore)
+    const high = [...pl.items].sort((a,b)=> (b.priorityScore||0)-(a.priorityScore||0)).slice(0,5);
+    const fmtCat = (cid:string)=> (categories.find(c=>c.id===cid)?.name)||cid;
+    const lines: string[] = [];
+    lines.push(`Mission ${id.slice(0,6)} – Synthèse exécutive`);
+    lines.push(`Score global: ${Math.round(sc.globalScore)}% · Maturité: ${sc.maturityLevel}`);
+    lines.push(`Forces: ${strengths.map(s=> fmtCat(s.cid)+` (${Math.round(s.val)}%)`).join('; ')}`);
+    lines.push(`Faiblesses: ${gaps.map(s=> fmtCat(s.cid)+` (${Math.round(s.val)}%)`).join('; ')}`);
+    lines.push(`Actions prioritaires (top 5):`);
+    high.forEach((a,i)=> lines.push(`${i+1}. ${a.text} [${a.horizon}] (P=${a.priorityScore ?? '-'}, ROI=${a.roiScore ?? '-'})`));
+    const summary = lines.join('\n');
+    // persist into plan
+    setPlan(prev => prev && prev.assessmentId===id ? { ...prev, executiveSummary: summary } : prev);
+    return summary;
+  };
+
   const getScoreHistory = (assessmentId: string) => scoreHistories[assessmentId] || [];
 
   const addQuestion = (q: Question) => {
@@ -857,6 +885,7 @@ export const AssessmentProvider: React.FC<{ children: React.ReactNode }> = ({ ch
   exportAssessment,
   exportPlanCSV,
   exportPlanXLSX,
+  generateExecutiveSummary,
   closeDepartment,
   reopenDepartment,
   isDepartmentClosed,

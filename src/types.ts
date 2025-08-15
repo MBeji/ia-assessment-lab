@@ -133,6 +133,7 @@ export interface Plan {
   id: string;
   assessmentId: string;
   items: PlanItem[];
+  executiveSummary?: string; // generated concise summary
 }
 
 export interface QuestionnaireTemplate {

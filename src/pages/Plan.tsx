@@ -12,7 +12,7 @@ const impactRank = { H: 3, M: 2, L: 1 } as const;
 const effortRank = { L: 1, M: 2, H: 3 } as const;
 
 const Plan = () => {
-  const { plan, scorecard, computeScores, generatePlan, assessment, responses, questions, assessments, selectAssessment, getAssessmentScorecard, getAssessmentProgress, exportPlanCSV, exportPlanXLSX, setPlan } = useAssessment() as any;
+  const { plan, scorecard, computeScores, generatePlan, assessment, responses, questions, assessments, selectAssessment, getAssessmentScorecard, getAssessmentProgress, exportPlanCSV, exportPlanXLSX, setPlan, generateExecutiveSummary } = useAssessment() as any;
   const [summaries, setSummaries] = useState<Record<string,{score:number; maturity:string}>>({});
   const [search, setSearch] = useState("");
   const [filterStatus, setFilterStatus] = useState<'all'|'active'|'archived'>('all');
@@ -143,6 +143,18 @@ const Plan = () => {
         </Card>
 
         <Card>
+          <CardHeader><CardTitle>Résumé exécutif</CardTitle></CardHeader>
+          <CardContent>
+            <div className="flex flex-col gap-2">
+              <Button variant="outline" onClick={()=> generateExecutiveSummary(assessment.id)}>Générer / Mettre à jour</Button>
+              {p.executiveSummary ? (
+                <pre className="whitespace-pre-wrap text-xs border rounded p-2 bg-muted/40 max-h-64 overflow-auto">{p.executiveSummary}</pre>
+              ) : <p className="text-xs text-muted-foreground">Aucun résumé encore.</p>}
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
           <CardHeader><CardTitle>Progression</CardTitle></CardHeader>
           <CardContent>
             <div className="text-4xl font-semibold mb-2">{completion}%</div>
@@ -215,7 +227,7 @@ const Plan = () => {
       </>}
 
       {sc && p && <div className="mt-6 flex justify-end gap-2">
-        <Button onClick={()=> exportPlanCSV(assessment.id)} variant="outline">CSV</Button>
+  <Button onClick={()=> exportPlanCSV(assessment.id)} variant="outline">CSV</Button>
         <Button onClick={()=> exportPlanXLSX(assessment.id)} variant="outline">XLSX</Button>
         <Button onClick={()=> window.print()} variant="outline">Imprimer / PDF</Button>
       </div>}
