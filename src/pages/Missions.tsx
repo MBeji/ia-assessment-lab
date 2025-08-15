@@ -2,6 +2,7 @@ import { Layout } from "@/components/Layout";
 import { SEO } from "@/components/SEO";
 import { useAssessment } from "@/context/AssessmentContext";
 import { useState, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 
@@ -9,6 +10,7 @@ const statusLabel = (a: any) => a.completedAt ? 'Clôturée' : 'En cours';
 
 const Missions = () => {
   const { assessments, selectAssessment, getAssessmentProgress, getAssessmentScorecard, exportAssessment, closeAssessment, deleteAssessment } = useAssessment();
+  const nav = useNavigate();
   const [query, setQuery] = useState('');
   const [sort, setSort] = useState<'updated'|'score'|'progress'>('updated');
   const [filter, setFilter] = useState<'all'|'open'|'closed'>('all');
@@ -58,7 +60,7 @@ const Missions = () => {
         {list.map(({a, prog, sc}) => {
           const pct = Math.round(prog.ratio*100);
           return (
-            <Card key={a.id} className="relative">
+            <Card key={a.id} className="relative cursor-pointer" onClick={(e)=> { e.stopPropagation(); selectAssessment(a.id); nav('/questionnaire'); }}>
               <CardHeader className="pb-3">
                 <CardTitle className="text-base flex items-center gap-2">{a.orgId.slice(0,6)} <span className={`text-[10px] px-1 rounded ${a.completedAt ? 'bg-emerald-600 text-white' : 'bg-blue-600 text-white'}`}>{statusLabel(a)}</span></CardTitle>
                 <CardDescription className="text-xs flex flex-col gap-0.5">
@@ -70,10 +72,10 @@ const Missions = () => {
                 <div className="h-2 w-full bg-muted rounded overflow-hidden"><div className="h-full bg-primary" style={{width: pct+'%'}}/></div>
                 <p>Progression: {pct}% · Questions: {prog.answered}/{prog.total}</p>
                 <div className="flex flex-wrap gap-1 pt-1">
-                  <Button size="sm" variant="secondary" onClick={()=> selectAssessment(a.id)}>Activer</Button>
-                  <Button size="sm" onClick={()=> exportAssessment(a.id)}>Exporter</Button>
-                  {!a.completedAt && <Button size="sm" variant="outline" onClick={()=> closeAssessment(a.id)}>Clôturer</Button>}
-                  <Button size="sm" variant="destructive" onClick={()=> { if(confirm('Supprimer ?')) deleteAssessment(a.id); }}>Suppr.</Button>
+                  <Button size="sm" variant="secondary" onClick={(e)=> { e.stopPropagation(); selectAssessment(a.id); nav('/questionnaire'); }}>Ouvrir</Button>
+                  <Button size="sm" onClick={(e)=> { e.stopPropagation(); exportAssessment(a.id); }}>Exporter</Button>
+                  {!a.completedAt && <Button size="sm" variant="outline" onClick={(e)=> { e.stopPropagation(); closeAssessment(a.id); }}>Clôturer</Button>}
+                  <Button size="sm" variant="destructive" onClick={(e)=> { e.stopPropagation(); if(confirm('Supprimer ?')) deleteAssessment(a.id); }}>Suppr.</Button>
                 </div>
               </CardContent>
             </Card>
