@@ -73,6 +73,8 @@ const Missions = () => {
                 <p>Progression: {pct}% · Questions: {prog.answered}/{prog.total}</p>
                 <div className="flex flex-wrap gap-1 pt-1">
                   <Button size="sm" variant="secondary" onClick={(e)=> { e.stopPropagation(); selectAssessment(a.id); nav('/questionnaire'); }}>Ouvrir</Button>
+                  <Button size="sm" onClick={(e)=> { e.stopPropagation(); selectAssessment(a.id); nav('/resultats'); }}>Résultats</Button>
+                  <Button size="sm" onClick={(e)=> { e.stopPropagation(); selectAssessment(a.id); nav('/plan'); }}>Plan</Button>
                   <Button size="sm" onClick={(e)=> { e.stopPropagation(); exportAssessment(a.id); }}>Exporter</Button>
                   {!a.completedAt && <Button size="sm" variant="outline" onClick={(e)=> { e.stopPropagation(); closeAssessment(a.id); }}>Clôturer</Button>}
                   <Button size="sm" variant="destructive" onClick={(e)=> { e.stopPropagation(); if(confirm('Supprimer ?')) deleteAssessment(a.id); }}>Suppr.</Button>
