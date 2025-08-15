@@ -138,8 +138,14 @@ const Results = () => {
   const sc = scorecard || (()=>{ try { return computeScores(); } catch { return undefined; } })();
   const hasValidScorecard = !!sc && Object.keys(sc.categoryScores||{}).length>0;
 
-  const radarData = sc ? categories.map(c => ({ category: c.name, score: sc.categoryScores[c.id] || 0 })) : [];
-  const barData = sc ? assessment.selectedDepartments.map(d => ({ department: d, score: (sc as any).departmentScores[d] || 0 })) : [];
+  // Chart datasets (apply tag filter to radar; keep original scoring values, just hide unrelated categories)
+  const radarData = sc ? categories
+    .filter(c => activeTags.length===0 || questions.some(q => q.categoryId===c.id && (q.tags||[]).some((t:string)=> activeTags.includes(t))))
+    .map(c => ({ category: c.name, score: sc.categoryScores[c.id] || 0 })) : [];
+  const barData = sc ? assessment.selectedDepartments.map(d => ({
+    department: d + (isDepartmentClosed(assessment.id,d) ? ' (Fermé)' : ''),
+    score: (sc as any).departmentScores[d] || 0
+  })) : [];
 
   const critical = useMemo(() => {
     return responses
@@ -210,7 +216,7 @@ const Results = () => {
         <Card className="md:col-span-2">
           <CardHeader>
             <CardTitle>Radar par catégorie</CardTitle>
-            <CardDescription>Vue 0–100%</CardDescription>
+            <CardDescription>Vue 0–100% {activeTags.length>0 && '(filtré par tags)'}</CardDescription>
           </CardHeader>
           <CardContent>
             <Suspense fallback={<div className="h-80 flex items-center justify-center text-xs text-muted-foreground">Chargement radar...</div>}>
@@ -224,6 +230,7 @@ const Results = () => {
         <Card>
           <CardHeader>
             <CardTitle>Scores par département</CardTitle>
+            {activeTags.length>0 && <CardDescription>Filtre visuel tags actif (scores globaux inchangés)</CardDescription>}
           </CardHeader>
           <CardContent>
             <Suspense fallback={<div className="h-72 flex items-center justify-center text-xs text-muted-foreground">Chargement barres...</div>}>
