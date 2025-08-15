@@ -46,6 +46,7 @@ interface AssessmentContextValue extends AppStateSnapshot {
   applyTemplate: (id: string, options?: { reset?: boolean }) => void;
   exportAssessment: (id: string) => void;
   exportPlanCSV: (id: string) => void;
+  exportPlanXLSX: (id: string) => void;
   closeDepartment: (assessmentId: string, dept: DepartmentId) => void;
   reopenDepartment: (assessmentId: string, dept: DepartmentId) => void;
   isDepartmentClosed: (assessmentId: string, dept: DepartmentId) => boolean;
@@ -626,6 +627,44 @@ export const AssessmentProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     const url = URL.createObjectURL(blob); const ael = document.createElement('a'); ael.href=url; ael.download=`plan-${id.slice(0,6)}.csv`; ael.click(); URL.revokeObjectURL(url);
   };
 
+  const exportPlanXLSX = (id: string) => {
+    const a = assessments.find(x=>x.id===id) || (assessment?.id===id ? assessment : undefined);
+    if (!a) return;
+    const pl = plan && plan.assessmentId===id ? plan : (scorecard && scorecard.assessmentId===id ? generatePlan(scorecard) : undefined);
+    if(!pl) return;
+    // dynamic import xlsx (avoid upfront cost)
+    import('xlsx').then(XLSX => {
+      const wb = XLSX.utils.book_new();
+      // Summary sheet
+      const total = pl.items.length;
+      const done = pl.items.filter(i=> i.status==='DONE').length;
+      const inprog = pl.items.filter(i=> i.status==='IN_PROGRESS').length;
+      const open = total - done - inprog;
+      const summaryData = [
+        ['Assessment', a.id.slice(0,8)],
+        ['Template', a.templateId||''],
+        ['Total actions', total],
+        ['Done', done],
+        ['In progress', inprog],
+        ['Open', open],
+        ['Completion %', total? Math.round(100*done/total):0]
+      ];
+      const wsSummary = XLSX.utils.aoa_to_sheet(summaryData);
+      XLSX.utils.book_append_sheet(wb, wsSummary, 'Résumé');
+      // Actions sheet
+      const actionsHeader = ['ID','Horizon','Texte','Impact','Effort','Statut','Priorité','Déficit','Catégorie','Question','DoublonGrp'];
+      const actionsRows = pl.items.map(it => [it.id||'', it.horizon, it.text, it.impact, it.effort, it.status||'', it.priorityScore||'', it.deficiency!=null? (it.deficiency*100).toFixed(0)+'%':'', it.linkedTo.categoryId||'', it.linkedTo.questionId||'', it.duplicateGroupId||'']);
+      const wsActions = XLSX.utils.aoa_to_sheet([actionsHeader, ...actionsRows]);
+      XLSX.utils.book_append_sheet(wb, wsActions, 'Actions');
+      // Criticalities sheet (group by duplicate group / priority)
+      const crit = [...pl.items].sort((a,b)=> (b.priorityScore||0)-(a.priorityScore||0)).map(i => [i.id, i.priorityScore, i.deficiency, i.impact, i.effort, i.duplicateGroupId||'', i.text]);
+      const wsCrit = XLSX.utils.aoa_to_sheet([['ID','Priorité','Déficit','Impact','Effort','Groupe','Texte'], ...crit]);
+      XLSX.utils.book_append_sheet(wb, wsCrit, 'Criticités');
+      const fname = `plan-${id.slice(0,6)}.xlsx`;
+      XLSX.writeFile(wb, fname);
+    }).catch(()=>{});
+  };
+
   const getScoreHistory = (assessmentId: string) => scoreHistories[assessmentId] || [];
 
   const addQuestion = (q: Question) => {
@@ -814,6 +853,7 @@ export const AssessmentProvider: React.FC<{ children: React.ReactNode }> = ({ ch
   deleteAssessment,
   exportAssessment,
   exportPlanCSV,
+  exportPlanXLSX,
   closeDepartment,
   reopenDepartment,
   isDepartmentClosed,

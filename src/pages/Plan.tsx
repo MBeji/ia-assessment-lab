@@ -12,7 +12,7 @@ const impactRank = { H: 3, M: 2, L: 1 } as const;
 const effortRank = { L: 1, M: 2, H: 3 } as const;
 
 const Plan = () => {
-  const { plan, scorecard, computeScores, generatePlan, assessment, responses, questions, assessments, selectAssessment, getAssessmentScorecard, getAssessmentProgress, exportPlanCSV, setPlan } = useAssessment() as any;
+  const { plan, scorecard, computeScores, generatePlan, assessment, responses, questions, assessments, selectAssessment, getAssessmentScorecard, getAssessmentProgress, exportPlanCSV, exportPlanXLSX, setPlan } = useAssessment() as any;
   const [summaries, setSummaries] = useState<Record<string,{score:number; maturity:string}>>({});
   const [search, setSearch] = useState("");
   const [filterStatus, setFilterStatus] = useState<'all'|'active'|'archived'>('all');
@@ -182,7 +182,8 @@ const Plan = () => {
       </>}
 
       {sc && p && <div className="mt-6 flex justify-end gap-2">
-        <Button onClick={()=> exportPlanCSV(assessment.id)} variant="outline">Export CSV</Button>
+        <Button onClick={()=> exportPlanCSV(assessment.id)} variant="outline">CSV</Button>
+        <Button onClick={()=> exportPlanXLSX(assessment.id)} variant="outline">XLSX</Button>
         <Button onClick={()=> window.print()} variant="outline">Imprimer / PDF</Button>
       </div>}
     </Layout>
