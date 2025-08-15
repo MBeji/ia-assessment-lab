@@ -3,10 +3,13 @@ import { useNavigate } from "react-router-dom";
 import { Layout } from "@/components/Layout";
 import { SEO } from "@/components/SEO";
 import { useAssessment } from "@/context/AssessmentContext";
+import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 
 const Questionnaire = () => {
   const nav = useNavigate();
-  const { assessment, templateId, templates, setTemplateId } = useAssessment();
+  const { assessment, templateId, templates, setTemplateId, responses, updateResponse, categories } = useAssessment() as any;
+  const [editMode, setEditMode] = useState(false);
   // Always operate in preview/browse mode now
   const [previewTemplate, setPreviewTemplate] = useState(templateId || templates[0]?.id);
   const tpl = useMemo(()=> templates.find(t=> t.id === previewTemplate), [templates, previewTemplate]);
@@ -28,8 +31,13 @@ const Questionnaire = () => {
           </div>
         </div>
         {assessment && (
-          <div className="text-[11px] p-2 rounded border bg-muted/40">
-            Questionnaire d'une mission: ouvrez la mission sur la page d'accueil pour consulter les réponses (lecture seule).
+          <div className="flex flex-col gap-2 text-[11px] p-2 rounded border bg-muted/40">
+            <div className="flex items-center justify-between">
+              <span>Mission active: {assessment.id.slice(0,6)}</span>
+              <Button size="sm" variant={editMode? 'secondary':'outline'} className="h-6 text-[11px]" onClick={()=> setEditMode(m=> !m)}>{editMode? 'Terminer édition':'Modifier réponses'}</Button>
+            </div>
+            {!editMode && <span className="text-muted-foreground">Lecture seule. Cliquez "Modifier réponses" pour activer l’édition.</span>}
+            {editMode && <span className="text-amber-600">Mode édition activé – vos changements sont sauvegardés automatiquement.</span>}
           </div>
         )}
         <div className="text-sm text-muted-foreground">{tpl?.description}</div>
@@ -43,15 +51,33 @@ const Questionnaire = () => {
                 </div>
               </div>
               <div className="space-y-3">
-                {tpl.questions.filter(q=> q.categoryId===cat.id).map(q => (
-                  <div key={q.id} className="text-sm border rounded p-3 bg-muted/30">
-                    <div className="font-medium text-xs mb-1">{q.code}</div>
-                    <div className="text-sm leading-snug">{q.text}</div>
-                    {tpl.assessmentScope==='per-department' && q.appliesToDepartments && q.appliesToDepartments[0] !== 'ALL' && (
-                      <div className="mt-2 flex flex-wrap gap-1 text-[10px] text-muted-foreground">{q.appliesToDepartments.map((d:any)=> <span key={d} className="px-1.5 py-0.5 rounded bg-border/40">{d}</span>)}</div>
-                    )}
-                  </div>
-                ))}
+                {tpl.questions.filter(q=> q.categoryId===cat.id).map(q => {
+                  const resp = assessment ? responses.find((r:any)=> r.assessmentId===assessment.id && r.questionId===q.id) : null;
+                  return (
+                    <div key={q.id} className="text-sm border rounded p-3 bg-muted/30">
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="flex-1">
+                          <div className="font-medium text-xs mb-1">{q.code}</div>
+                          <div className="text-sm leading-snug">{q.text}</div>
+                          {tpl.assessmentScope==='per-department' && q.appliesToDepartments && q.appliesToDepartments[0] !== 'ALL' && (
+                            <div className="mt-2 flex flex-wrap gap-1 text-[10px] text-muted-foreground">{q.appliesToDepartments.map((d:any)=> <span key={d} className="px-1.5 py-0.5 rounded bg-border/40">{d}</span>)}</div>
+                          )}
+                        </div>
+                        {editMode && assessment && (
+                          <div className="flex flex-col gap-1 items-end w-40 text-[11px]">
+                            <div className="flex gap-1">
+                              {[0,1,2,3,4,5].map(v=> (
+                                <button key={v} onClick={()=> updateResponse({ questionId: q.id, departmentId: assessment.selectedDepartments[0], value: v, isNA: false })} className={`h-6 w-6 border rounded text-xs ${resp && resp.value===v && !resp.isNA ? 'bg-primary text-primary-foreground' : 'bg-background'}`}>{v}</button>
+                              ))}
+                            </div>
+                            {q.allowNA && <label className="flex items-center gap-1"><Checkbox checked={resp?.isNA || false} onCheckedChange={(ck)=> updateResponse({ questionId: q.id, departmentId: assessment.selectedDepartments[0], value: null, isNA: !!ck })} /> <span>N/A</span></label>}
+                          </div>
+                        )}
+                        {!editMode && resp && <div className="text-xs px-2 py-1 rounded bg-background border">{resp.isNA? 'N/A' : resp.value}</div>}
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
             </div>
           ))}

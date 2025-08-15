@@ -31,6 +31,7 @@ interface AssessmentContextValue extends AppStateSnapshot {
   startAssessment: (org: Pick<Organization, "name" | "sector" | "size">, assessor: { name: string; email: string }, selectedDepartments: DepartmentId[], templateId?: string) => void;
   selectAssessment: (id: string) => void;
   closeAssessment: (id: string) => void;
+  reopenAssessment?: (id: string) => void;
   deleteAssessment: (id: string) => void;
   updateResponse: (payload: Omit<ResponseRow, "id" | "assessmentId"> & { id?: string }) => void;
   computeScores: () => Scorecard;
@@ -842,6 +843,12 @@ export const AssessmentProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     if (USE_SUPABASE) setTimeout(()=> syncAssessmentInternal(id), 400);
   };
 
+  const reopenAssessment = (id: string) => {
+    setAssessments(prev => prev.map(a => a.id===id ? { ...a, completedAt: undefined } : a));
+    if (assessment?.id === id) setAssessment(a => a ? { ...a, completedAt: undefined } : a);
+    if (USE_SUPABASE) setTimeout(()=> syncAssessmentInternal(id), 400);
+  };
+
   const exportAssessment = (id: string) => {
     const a = assessments.find(a => a.id === id) || (assessment && assessment.id === id ? assessment : undefined);
     if (!a) return;
@@ -927,6 +934,7 @@ export const AssessmentProvider: React.FC<{ children: React.ReactNode }> = ({ ch
   applyTemplate,
   selectAssessment,
   closeAssessment,
+  reopenAssessment,
   deleteAssessment,
   exportAssessment,
   exportPlanCSV,
