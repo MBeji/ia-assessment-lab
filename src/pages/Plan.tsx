@@ -1,4 +1,4 @@
-import { useMemo, useState, useEffect } from "react";
+import { useMemo, useState, useEffect, lazy, Suspense } from "react";
 import { Layout } from "@/components/Layout";
 import { SEO } from "@/components/SEO";
 import { useAssessment } from "@/context/AssessmentContext";
@@ -9,6 +9,9 @@ import { exportElementAsPDF } from '@/lib/exportPdf';
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ImportExport } from "@/components/ImportExport";
+import { Deferred } from '@/components/Deferred';
+
+const TagHorizonHeatmap = lazy(()=> import('@/components/charts/TagHorizonHeatmap').then(m=>({ default: m.TagHorizonHeatmap })));
 
 const impactRank = { H: 3, M: 2, L: 1 } as const;
 const effortRank = { L: 1, M: 2, H: 3 } as const;
@@ -24,6 +27,7 @@ const Plan = () => {
   const [kanbanMode, setKanbanMode] = useState(false);
   const [compactMode, setCompactMode] = useState(false);
   const [editingJustifId, setEditingJustifId] = useState<string|null>(null);
+  const [actionTagFilter, setActionTagFilter] = useState<string>('');
   useEffect(()=>{
     const map: Record<string,{score:number; maturity:string}> = {};
     assessments.forEach(a=>{ const sc = getAssessmentScorecard(a.id); if(sc) map[a.id] = { score: sc.globalScore, maturity: sc.maturityLevel }; });
@@ -107,7 +111,14 @@ const Plan = () => {
   }, [plan, sc, assessment?.id]);
 
   const groups = useMemo(() => {
-    const filtered = actionStatusFilter==='ALL' ? p.items : p.items.filter(i => (i.status||'OPEN')===actionStatusFilter);
+    let filtered = actionStatusFilter==='ALL' ? p.items : p.items.filter(i => (i.status||'OPEN')===actionStatusFilter);
+    if (actionTagFilter) {
+      filtered = filtered.filter(i => {
+        if (!i.linkedTo?.questionId) return false;
+        const q = questions.find(q=> q.id===i.linkedTo.questionId);
+        return q && (q.tags||[]).includes(actionTagFilter);
+      });
+    }
     const g: Record<string, typeof p.items> = { '0-90j': [], '3-6m': [], '6-12m': [] } as any;
     filtered.forEach(i => g[i.horizon].push(i));
     (Object.keys(g) as (keyof typeof g)[]).forEach(h => {
@@ -115,7 +126,7 @@ const Plan = () => {
       else g[h].sort((a,b)=> (impactRank[b.impact]-impactRank[a.impact]) || (effortRank[a.effort]-effortRank[b.effort]));
     });
     return g;
-  }, [p, actionStatusFilter, sortByPriority]);
+  }, [p, actionStatusFilter, actionTagFilter, sortByPriority, questions]);
 
   const quickWins = p.items.filter(i => (i.impact !== 'L') && (i.effort !== 'H'));
   const completion = p.items.length? Math.round(100 * (p.items.filter(i=> i.status==='DONE').length / p.items.length)) : 0;
@@ -130,6 +141,45 @@ const Plan = () => {
   const totalRelevant = assessment?.selectedDepartments.reduce((acc, d) => acc + questions.filter(q => q.categoryId && (q.appliesToDepartments.includes('ALL') || q.appliesToDepartments.includes(d))).length, 0) ?? 0;
   const answeredNonNA = responses.filter(r => assessment && r.assessmentId === assessment.id && assessment.selectedDepartments.includes(r.departmentId) && !r.isNA && r.value !== null).length;
   const remaining = Math.max(0, totalRelevant - answeredNonNA);
+
+  // Tag & risk stats
+  const tagStats = useMemo(()=> {
+    // derive tags from questions referenced by actions
+    const map: Record<string, { actions: number; highRiskCovered: number; highRiskTotal: number }> = {};
+    const qById: Record<string, any> = {}; questions.forEach(q=> qById[q.id]=q);
+    // Pre-calc high risk by tag
+    questions.forEach(q => {
+      (q.tags||[]).forEach(t => {
+        if(!map[t]) map[t] = { actions:0, highRiskCovered:0, highRiskTotal:0 };
+        if(q.riskLevel==='HIGH') map[t].highRiskTotal += 1;
+      });
+    });
+    p.items.forEach(it => {
+      const q = it.linkedTo?.questionId ? qById[it.linkedTo.questionId] : undefined;
+      if(!q) return;
+      (q.tags||[]).forEach((t:string) => {
+        if(!map[t]) map[t] = { actions:0, highRiskCovered:0, highRiskTotal:0 };
+        map[t].actions += 1;
+        if(q.riskLevel==='HIGH') map[t].highRiskCovered += 1; // counts actions tied to high risk question
+      });
+    });
+    // Convert to array
+    const arr = Object.entries(map).map(([tag, v]) => ({ tag, ...v, highRiskCoverage: v.highRiskTotal? Math.round(100 * (v.highRiskCovered / v.highRiskTotal)) : 0 }));
+    // sort by actions desc
+    arr.sort((a,b)=> b.actions - a.actions || a.tag.localeCompare(b.tag));
+    return arr;
+  }, [p.items, questions]);
+
+  const actionRiskDistribution = useMemo(()=> {
+    const dist = { HIGH:0, MEDIUM:0, LOW:0, NA:0 } as Record<string, number>;
+    const qById: Record<string, any> = {}; questions.forEach(q=> qById[q.id]=q);
+    p.items.forEach(it => {
+      const q = it.linkedTo?.questionId ? qById[it.linkedTo.questionId] : undefined;
+      const rl = q?.riskLevel || 'NA';
+      dist[rl] = (dist[rl]||0)+1;
+    });
+    return dist;
+  }, [p.items, questions]);
 
   return (
     <Layout>
@@ -225,6 +275,16 @@ const Plan = () => {
               <option value="DONE">Terminées</option>
             </select>
           </div>
+          {tagStats.length>0 && (
+            <div className="flex items-center gap-1">
+              <span className="text-muted-foreground">Tag</span>
+              <select value={actionTagFilter} onChange={e=> setActionTagFilter(e.target.value)} className="h-7 border rounded bg-background px-1 max-w-[160px]">
+                <option value="">Tous</option>
+                {tagStats.map(t => <option key={t.tag} value={t.tag}>{t.tag} ({t.actions})</option>)}
+              </select>
+              {actionTagFilter && <button type="button" onClick={()=> setActionTagFilter('')} className="h-7 px-2 border rounded bg-background hover:bg-accent">Reset</button>}
+            </div>
+          )}
           <button type="button" onClick={()=> setSortByPriority(s=> !s)} className="h-7 px-2 border rounded bg-background hover:bg-accent">Tri: {sortByPriority? 'Priorité' : 'Impact/Effort'}</button>
           <button type="button" onClick={()=> setKanbanMode(m=> !m)} disabled={compactMode} className="h-7 px-2 border rounded bg-background hover:bg-accent disabled:opacity-40">Vue: {kanbanMode? 'Liste' : 'Kanban'}</button>
           <button type="button" onClick={()=> setCompactMode(c=> !c)} disabled={kanbanMode} className="h-7 px-2 border rounded bg-background hover:bg-accent disabled:opacity-40">Mode: {compactMode? 'Standard' : 'Compact'}</button>
@@ -244,6 +304,7 @@ const Plan = () => {
                           <div className={`font-medium leading-snug flex-1 ${i.status==='DONE'? 'line-through' : ''}`}>
                             {i.text}
                             {i.duplicateGroupId && <span className="ml-2 text-[10px] px-1 py-0.5 rounded bg-amber-200 text-amber-900">Doublon {i.duplicateGroupId}</span>}
+                            {i.linkedTo?.questionId && (()=>{ const q = questions.find(q=> q.id===i.linkedTo.questionId); return q?.tags ? q.tags.map((tg:string)=>(<span key={tg} className="ml-1 inline-block text-[9px] px-1 rounded bg-muted text-muted-foreground">{tg}</span>)) : null; })()}
                           </div>
                           <select value={i.status || 'OPEN'} onChange={e=> {
                             const v = e.target.value as any;
@@ -262,6 +323,7 @@ const Plan = () => {
                           {i.roiScore!=null && <span>ROI {i.roiScore}</span>}
                           {i.deficiency!=null && <span>Déficit {(i.deficiency*100).toFixed(0)}%</span>}
                           {i.status && <span>Status {i.status==='OPEN'?'O': i.status==='IN_PROGRESS'?'E':'T'}</span>}
+                          {i.linkedTo?.questionId && (()=> { const q = questions.find(q=> q.id===i.linkedTo.questionId); return q?.riskLevel ? <span>Risk {q.riskLevel}</span> : null; })()}
                           {i.status==='DONE' && !i.justification && <span className="text-red-500 font-medium">Justification requise</span>}
                         </div>
                         {editingJustifId===i.id && <div className="mt-1">
@@ -298,6 +360,7 @@ const Plan = () => {
               <tbody>
                 {p.items
                   .filter(i => actionStatusFilter==='ALL' ? true : (i.status||'OPEN')===actionStatusFilter)
+                  .filter(i => !actionTagFilter || (i.linkedTo?.questionId && (()=>{ const q = questions.find(q=> q.id===i.linkedTo!.questionId); return q && (q.tags||[]).includes(actionTagFilter); })()))
                   .sort((a,b)=> sortByPriority ? (b.priorityScore||0)-(a.priorityScore||0) : (impactRank[b.impact]-impactRank[a.impact]) || (effortRank[a.effort]-effortRank[b.effort]))
                   .map((i, idx)=> {
                     return (
@@ -347,6 +410,52 @@ const Plan = () => {
           </div>
         )}
   </div>}
+
+      {sc && p && <div className="mt-6 grid md:grid-cols-2 gap-4 md:gap-6">
+        <Card>
+          <CardHeader><CardTitle>Répartition par tag</CardTitle></CardHeader>
+          <CardContent>
+            {tagStats.length? (
+              <ul className="text-xs space-y-1 max-h-64 overflow-auto">
+                {tagStats.map(ts => (
+                  <li key={ts.tag} className="flex items-center justify-between gap-2">
+                    <span className="flex items-center gap-1">
+                      <span className="inline-block px-1.5 py-0.5 rounded bg-muted text-muted-foreground text-[10px]">{ts.tag}</span>
+                    </span>
+                    <span className="text-[10px] text-muted-foreground flex gap-3">
+                      <span>{ts.actions} act.</span>
+                      {ts.highRiskTotal>0 && <span>HR {ts.highRiskCovered}/{ts.highRiskTotal} ({ts.highRiskCoverage}%)</span>}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            ) : <p className="text-xs text-muted-foreground">Aucun tag utilisé par des actions.</p>}
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader><CardTitle>Répartition risque des actions</CardTitle></CardHeader>
+          <CardContent>
+            <div className="text-xs grid grid-cols-2 gap-2">
+              {(['HIGH','MEDIUM','LOW','NA'] as const).map(r => (
+                <div key={r} className="flex items-center justify-between gap-2">
+                  <span>{r==='NA'? 'Sans question' : r}</span>
+                  <span className="font-medium">{actionRiskDistribution[r]||0}</span>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+        <Card className="md:col-span-2">
+          <CardHeader><CardTitle>Heatmap Tag × Horizon</CardTitle></CardHeader>
+          <CardContent>
+            <Deferred height={340}>
+              <Suspense fallback={<div className="h-72 flex items-center justify-center text-xs text-muted-foreground">Chargement...</div>}>
+                <TagHorizonHeatmap items={p.items} questions={questions} />
+              </Suspense>
+            </Deferred>
+          </CardContent>
+        </Card>
+      </div>}
 
       {sc && p && <div className="mt-6 flex justify-end gap-2">
   <Button onClick={()=> exportPlanCSV(assessment.id)} variant="outline">CSV</Button>

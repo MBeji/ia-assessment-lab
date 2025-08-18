@@ -179,6 +179,32 @@ const Results = () => {
     return { cat, cov };
   }).filter(x => x.cov < 0.5);
 
+  // Enrichment quality metrics (guidance, barèmes, tags, risk coverage)
+  const totalQuestions = questions.length || 1; // avoid div/0
+  const enrichedGuidance = questions.filter((q:any)=> (q.guidance||'').trim().length>0).length;
+  const enrichedBarème = questions.filter((q:any)=> Array.isArray(q.scaleDescriptors) && q.scaleDescriptors.length>=3).length;
+  const enrichedTags = questions.filter((q:any)=> (q.tags||[]).length>0).length;
+  const pct = (n:number)=> Math.round((n/totalQuestions)*100);
+  const highRiskQs = questions.filter((q:any)=> q.riskLevel==='HIGH');
+  const highRiskWithGuidance = highRiskQs.filter(q=> (q.guidance||'').trim().length>0).length;
+  const answeredHighRiskIds = new Set(responses.filter(r => r.assessmentId===assessment.id && !r.isNA && r.value!==null && highRiskQs.some((q:any)=> q.id===r.questionId)).map(r=> r.questionId));
+  const highRiskCoverage = highRiskQs.length ? Math.round( (answeredHighRiskIds.size / highRiskQs.length)*100 ) : 0;
+  const missingHighRiskGuidance = highRiskQs.length - highRiskWithGuidance;
+
+  const EnrichmentStat: React.FC<{ label:string; value:number; total?:number; unit?:string; warn?:boolean; helper?:string }> = ({ label, value, total, unit, warn, helper }) => {
+    const pctLocal = total!=null ? Math.round((value/total)*100) : undefined;
+    return (
+      <div className="flex flex-col gap-1 text-xs">
+        <div className="flex items-center justify-between">
+          <span className="font-medium {warn? 'text-destructive':''}">{label}</span>
+          <span className={`font-semibold ${warn? 'text-destructive':'text-foreground'}`}>{value}{unit || (total!=null? ` / ${total}`:'')}{pctLocal!=null? ` (${pctLocal}%)`:''}</span>
+        </div>
+        {helper && <div className="text-[10px] text-muted-foreground leading-snug">{helper}</div>}
+        {total!=null && <div className="h-1.5 rounded bg-muted overflow-hidden"><div style={{width: (pctLocal||0)+'%'}} className={`h-full ${warn? 'bg-destructive':'bg-primary'} transition-all`}></div></div>}
+      </div>
+    );
+  };
+
   return (
     <Layout>
   <SEO title="SynapFlow – Résultats" description="Scores par catégorie et département, forces/faiblesses." canonical={window.location.origin + "/resultats"} />
@@ -305,6 +331,34 @@ const Results = () => {
           </CardContent>
         </Card>
   </div>}
+
+  {sc && <div className="grid md:grid-cols-2 gap-4 md:gap-6 mt-6">
+      <Card>
+        <CardHeader>
+          <CardTitle>Qualité d'enrichissement</CardTitle>
+          <CardDescription>Guidance, barèmes, tags & couverture risque</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <EnrichmentStat label="Questions totales" value={totalQuestions} />
+          <EnrichmentStat label="Avec guidance" value={enrichedGuidance} total={totalQuestions} helper="Questions disposant d'une aide contextuelle" />
+          <EnrichmentStat label="Avec barème" value={enrichedBarème} total={totalQuestions} helper="Questions avec échelle descriptive (≥3 niveaux)" />
+          <EnrichmentStat label="Avec tags" value={enrichedTags} total={totalQuestions} helper="Taxonomie appliquée" />
+        </CardContent>
+      </Card>
+      <Card>
+        <CardHeader>
+          <CardTitle>Couverture questions à risque</CardTitle>
+          <CardDescription>Focus High Risk</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <EnrichmentStat label="High Risk" value={highRiskQs.length} />
+          <EnrichmentStat label="Répondues (≥1 dept)" value={answeredHighRiskIds.size} total={highRiskQs.length} helper="Au moins une réponse non-NA" />
+          <EnrichmentStat label="Guidées" value={highRiskWithGuidance} total={highRiskQs.length} />
+          <EnrichmentStat label="Manque guidance" value={missingHighRiskGuidance} total={highRiskQs.length} warn={missingHighRiskGuidance>0} />
+          <div className="text-[11px] text-muted-foreground">Couverture High Risk: {highRiskCoverage}%</div>
+        </CardContent>
+      </Card>
+    </div>}
 
       <div className="mt-6 flex justify-end">
   <Button variant="hero" disabled={!hasValidScorecard} onClick={()=> { if(sc) { generatePlan(sc); nav('/plan'); } }}>Générer le plan d’action</Button>
