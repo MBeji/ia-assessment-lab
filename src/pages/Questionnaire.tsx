@@ -99,24 +99,36 @@ const Questionnaire = () => {
     <Layout>
       <SEO title="SynapFlow – Modèles" description="Parcourir un modèle de questionnaire IA" canonical={window.location.origin + "/questionnaire"} />
       <div className="max-w-5xl mx-auto space-y-6 py-4">
-        <div className="flex items-center justify-between flex-wrap gap-4">
-          <div>
-            <h1 className="text-2xl font-semibold">Modèles de questionnaire</h1>
-            <p className="text-xs text-muted-foreground">Sélectionnez un modèle et parcourez ses catégories et questions. (Cette page n'est plus utilisée pour la saisie des réponses.)</p>
-          </div>
-          <div className="flex items-center gap-2 text-xs flex-wrap">
-              <select className="h-9 border rounded px-2" value={previewTemplate} onChange={e=> setPreviewTemplate(e.target.value)}>
-              {templates.map(t=> <option key={t.id} value={t.id}>{t.name}</option>)}
-            </select>
-            {tpl?.assessmentScope === 'organization' ? <span className="px-2 py-1 rounded bg-indigo-600 text-white text-[11px]">Organisation</span> : <span className="px-2 py-1 rounded bg-emerald-600 text-white text-[11px]">Multi-départements</span>}
-            <button className="text-xs underline" onClick={()=> { setTemplateId(previewTemplate); nav('/'); }}>Utiliser ce modèle →</button>
-              <div className="flex items-center gap-1 flex-wrap">
-                <button className="text-xs underline" onClick={()=> setShowImport(s=> !s)}>{showImport? 'Annuler import':'Importer'}</button>
-                <button className="text-xs underline" onClick={()=> exportTemplate?.(previewTemplate)}>Exporter</button>
-                {previewTemplate.startsWith('custom_') && <button className="text-xs underline text-destructive" onClick={()=> { if(confirm('Supprimer ce modèle personnalisé ?')) { removeCustomTemplate?.(previewTemplate); setPreviewTemplate(templates[0]?.id); } }}>Supprimer</button>}
-                {isCustom && <button className="text-xs underline" onClick={duplicateCurrent}>Dupliquer</button>}
-                {!isCustom && <button className="text-xs underline" onClick={()=> { const id=duplicateTemplate?.(previewTemplate); if(id){ setPreviewTemplate(id); setTemplateId(id);} }}>Copier pour éditer</button>}
+        <div className="space-y-4">
+          <div className="flex flex-col gap-4">
+            <div className="flex flex-wrap items-center justify-between gap-4">
+              <div>
+                <h1 className="text-2xl font-semibold">Modèles de questionnaire</h1>
+                <p className="text-xs text-muted-foreground">Sélectionnez un modèle puis: Utiliser (nouvelle mission), Éditer (si personnalisé), Importer.</p>
               </div>
+              <div className="flex items-center gap-3 flex-wrap" role="toolbar" aria-label="Actions modèle">
+                <select className="h-10 border rounded px-3 text-sm bg-background" value={previewTemplate} onChange={e=> setPreviewTemplate(e.target.value)} aria-label="Sélection du modèle">
+                  {templates.map(t=> <option key={t.id} value={t.id}>{t.name}</option>)}
+                </select>
+                <Button size="sm" onClick={()=> { setTemplateId(previewTemplate); nav('/'); }} className="font-semibold">Utiliser</Button>
+                {isCustom ? (
+                  <Button size="sm" variant={editMode? 'secondary':'outline'} onClick={()=> setEditMode(m=> !m)}>{editMode? 'Terminer' : 'Éditer'}</Button>
+                ) : (
+                  <Button size="sm" variant="outline" onClick={()=> { const id=duplicateTemplate?.(previewTemplate); if(id){ setPreviewTemplate(id); setTemplateId(id); setEditMode(true);} }}>Copier & Éditer</Button>
+                )}
+                <Button size="sm" variant={showImport? 'secondary':'outline'} onClick={()=> setShowImport(s=> !s)}>{showImport? 'Fermer import' : 'Importer'}</Button>
+                <div className="flex items-center gap-2 ml-2">
+                  <Button size="sm" variant="outline" onClick={()=> exportTemplate?.(previewTemplate)}>Exporter</Button>
+                  {isCustom && <Button size="sm" variant="outline" onClick={duplicateCurrent}>Dupliquer</Button>}
+                  {isCustom && <Button size="sm" variant="destructive" onClick={()=> { if(confirm('Supprimer ce modèle personnalisé ?')) { removeCustomTemplate?.(previewTemplate); setPreviewTemplate(templates[0]?.id); setEditMode(false);} }}>Supprimer</Button>}
+                </div>
+              </div>
+            </div>
+            <div className="flex items-center gap-3 text-[11px] flex-wrap">
+              {tpl?.assessmentScope === 'organization' ? <span className="px-2 py-0.5 rounded bg-indigo-600 text-white">Organisation</span> : <span className="px-2 py-0.5 rounded bg-emerald-600 text-white">Multi-départements</span>}
+              {isCustom && editMode && <span className="text-amber-600">Édition active (auto‑sauvegarde)</span>}
+              {!isCustom && <span className="text-muted-foreground">Modèle standard en lecture seule</span>}
+            </div>
           </div>
           {showImport && (
             <div className="w-full border rounded p-3 bg-muted/40 flex flex-col gap-2 text-[11px]">
