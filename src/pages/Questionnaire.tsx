@@ -8,11 +8,25 @@ import { Checkbox } from "@/components/ui/checkbox";
 
 const Questionnaire = () => {
   const nav = useNavigate();
-  const { assessment, templateId, templates, setTemplateId, responses, updateResponse, categories } = useAssessment() as any;
+  const { assessment, templateId, templates, setTemplateId, responses, updateResponse } = useAssessment() as any;
   const [editMode, setEditMode] = useState(false);
   // Always operate in preview/browse mode now
   const [previewTemplate, setPreviewTemplate] = useState(templateId || templates[0]?.id);
   const tpl = useMemo(()=> templates.find(t=> t.id === previewTemplate), [templates, previewTemplate]);
+  const [tagFilter, setTagFilter] = useState<'ALL' | string>('ALL');
+  const allTags = useMemo(()=> Array.from(new Set((tpl?.questions||[]).flatMap((q:any)=> q.tags||[]))).sort(), [tpl]);
+  const filteredQuestionsByCat = useMemo(()=> {
+    if(!tpl) return {} as Record<string, any[]>;
+    const map: Record<string, any[]> = {};
+    tpl.categories.forEach(c => { map[c.id] = []; });
+    tpl.questions.forEach(q => {
+      if(tagFilter!=='ALL') {
+        if(!(q.tags||[]).includes(tagFilter)) return;
+      }
+      map[q.categoryId]?.push(q);
+    });
+    return map;
+  }, [tpl, tagFilter]);
   return (
     <Layout>
       <SEO title="SynapFlow – Modèles" description="Parcourir un modèle de questionnaire IA" canonical={window.location.origin + "/questionnaire"} />
@@ -41,8 +55,22 @@ const Questionnaire = () => {
           </div>
         )}
         <div className="text-sm text-muted-foreground">{tpl?.description}</div>
-        <div className="space-y-4">
-          {tpl?.categories.map(cat => (
+        <div className="space-y-6">
+          {allTags.length>0 && (
+            <div className="flex flex-wrap items-center gap-2 text-[11px]">
+              <span className="font-medium">Filtres tags:</span>
+              <button onClick={()=> setTagFilter('ALL')} className={`px-2 py-1 rounded border ${tagFilter==='ALL' ? 'bg-primary text-primary-foreground' : 'bg-background'}`}>Tous ({tpl?.questions.length||0})</button>
+              {allTags.map(tg => {
+                const t = tg as string;
+                const count = (tpl?.questions||[]).filter((q:any)=> (q.tags||[]).includes(t)).length;
+                return <button key={t} onClick={()=> setTagFilter(t)} className={`px-2 py-1 rounded border ${tagFilter===t? 'bg-primary text-primary-foreground' : 'bg-background'}`}>{t} ({count})</button>;
+              })}
+            </div>
+          )}
+          {tpl?.categories.map(cat => {
+            const qs = filteredQuestionsByCat[cat.id] || [];
+            if(!qs.length) return null;
+            return (
             <div key={cat.id} className="border rounded p-4 space-y-3">
               <div className="flex items-start justify-between">
                 <div>
@@ -51,7 +79,7 @@ const Questionnaire = () => {
                 </div>
               </div>
               <div className="space-y-3">
-                {tpl.questions.filter(q=> q.categoryId===cat.id).map(q => {
+                {qs.map(q => {
                   const resp = assessment ? responses.find((r:any)=> r.assessmentId===assessment.id && r.questionId===q.id) : null;
                   return (
                     <div key={q.id} className="text-sm border rounded p-3 bg-muted/30">
@@ -66,6 +94,11 @@ const Questionnaire = () => {
                               <ul className="space-y-1 text-[10px] list-disc pl-4">
                                 {q.scaleDescriptors.map((d:string,idx:number)=>(<li key={idx}><span className="font-semibold">{idx}</span> {d}</li>))}
                               </ul>
+                            </div>
+                          )}
+                          {q.tags && q.tags.length>0 && (
+                            <div className="mt-2 flex flex-wrap gap-1 text-[9px]">
+                              {q.tags.map((tg:string)=>(<span key={tg} className="px-1.5 py-0.5 border rounded bg-background">{tg}</span>))}
                             </div>
                           )}
                           {tpl.assessmentScope==='per-department' && q.appliesToDepartments && q.appliesToDepartments[0] !== 'ALL' && (
@@ -89,7 +122,7 @@ const Questionnaire = () => {
                 })}
               </div>
             </div>
-          ))}
+          ); })}
         </div>
       </div>
     </Layout>
