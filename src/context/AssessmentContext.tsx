@@ -17,6 +17,7 @@ import {
   ImpactLevel,
   EffortLevel,
   Horizon,
+  AssessmentWorkflowState,
 } from "@/types";
 import { DEPT_DEFAULT_WEIGHTS, SEED_CATEGORIES, SEED_DEPARTMENTS, SEED_QUESTIONS, SEED_RULES } from "@/data/seeds";
 import { upsertAssessment as supaUpsertAssessment, upsertResponses as supaUpsertResponses, listAssessments as supaListAssessments, fetchResponses as supaFetchResponses, saveScorePlan as supaSaveScorePlan } from '@/lib/supabaseStorage';
@@ -92,6 +93,12 @@ export const AssessmentProvider: React.FC<{ children: React.ReactNode }> = ({ ch
   const [syncState, setSyncState] = useState<{ status: 'idle' | 'saving'; lastSyncAt?: string }>({ status: 'idle' });
   const syncDebounceRef = React.useRef<any>();
   const [scoreHistories, setScoreHistories] = useState<Record<string, { ts: string; globalScore: number }[]>>({});
+
+  // Reusable workflow state setter (centralized)
+  const setWorkflowState = (assessmentId: string, state: AssessmentWorkflowState, extra: Partial<Assessment> = {}) => {
+    setAssessments(prev => prev.map(a => a.id===assessmentId ? { ...a, workflowState: state, updatedAt: new Date().toISOString(), ...extra } : a));
+    setAssessment(a => a && a.id===assessmentId ? { ...a, workflowState: state, ...extra } : a);
+  };
 
   // Restore from localStorage
   useEffect(() => {
@@ -243,6 +250,15 @@ export const AssessmentProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     const total = selected.reduce((acc, d) => acc + relevantQuestionIdsByDept[d].length, 0);
     if (total === 0) return 0;
     // Only count non-NA answers as progress to avoid 100% when defaults are NA
+    // Workflow transitions based on completion ratio
+    const ratio = answeredRatio();
+    if (ratio >= 1 && assessment.workflowState !== 'QUESTIONNAIRE_TERMINE' && assessment.workflowState !== 'RESULTATS_GENERES' && assessment.workflowState !== 'PLAN_GENERE') {
+      setAssessments(prev => prev.map(a => a.id===assessment.id ? { ...a, workflowState: 'QUESTIONNAIRE_TERMINE', questionnaireCompletedAt: new Date().toISOString() } : a));
+      setAssessment(a => a ? { ...a, workflowState: 'QUESTIONNAIRE_TERMINE', questionnaireCompletedAt: new Date().toISOString() } : a);
+    } else if (ratio < 1 && (assessment.workflowState === 'INITIE' || assessment.workflowState === 'QUESTIONNAIRE_TERMINE')) {
+      setAssessments(prev => prev.map(a => a.id===assessment.id ? { ...a, workflowState: 'QUESTIONNAIRE_EN_COURS' } : a));
+      setAssessment(a => a ? { ...a, workflowState: 'QUESTIONNAIRE_EN_COURS' } : a);
+    }
     const answered = responses.filter(
       r => r.assessmentId === assessment.id && selected.includes(r.departmentId) && !r.isNA && r.value !== null
     ).length;
@@ -267,7 +283,7 @@ export const AssessmentProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     setOrganization(organization);
     const assessment: Assessment = {
       id: genId(), orgId, assessorName: assessor.name, assessorEmail: assessor.email,
-      selectedDepartments, startedAt: now, updatedAt: now,
+      selectedDepartments, startedAt: now, updatedAt: now, workflowState: 'INITIE',
     };
     setAssessment(assessment);
     setAssessments(prev => [assessment, ...prev]);
@@ -299,11 +315,18 @@ export const AssessmentProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     setResponses(prefilled);
     setScorecard(undefined);
     setPlan(undefined);
+  setWorkflowState(assessment.id, 'QUESTIONNAIRE_EN_COURS');
   };
 
   const updateResponse: AssessmentContextValue["updateResponse"] = (payload) => {
     if (!assessment) return;
   if (assessment.closedDepartments && assessment.closedDepartments.includes(payload.departmentId)) return; // frozen
+  // If modifying after results or plan were generated, invalidate downstream artifacts & revert workflow
+  if (assessment.workflowState === 'RESULTATS_GENERES' || assessment.workflowState === 'PLAN_GENERE') {
+    setScorecard(undefined);
+    setPlan(undefined);
+    setWorkflowState(assessment.id, 'QUESTIONNAIRE_EN_COURS', { resultsGeneratedAt: undefined, planGeneratedAt: undefined });
+  }
   setResponses(prev => {
       const existingIdx = prev.findIndex(r => r.assessmentId === assessment.id && r.questionId === payload.questionId && r.departmentId === payload.departmentId);
       const base: ResponseRow = {
@@ -523,6 +546,10 @@ export const AssessmentProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       if (list.length && Math.abs(list[list.length-1].globalScore - sc.globalScore) < 0.01) return prev; // avoid duplicates
       return { ...prev, [assessment.id]: [...list, { ts: new Date().toISOString(), globalScore: sc.globalScore }] };
     });
+    // Workflow transition: only move to RESULTATS_GENERES if questionnaire is complete and not yet at plan or archive
+    if ((assessment.workflowState === 'QUESTIONNAIRE_TERMINE' || assessment.workflowState === 'QUESTIONNAIRE_EN_COURS') && answeredRatio() === 1) {
+      setWorkflowState(assessment.id, 'RESULTATS_GENERES', { resultsGeneratedAt: new Date().toISOString() });
+    }
     return sc;
   };
 
@@ -623,6 +650,10 @@ export const AssessmentProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     // Sort items by horizon groups later; keep insertion order now
     const plan: Plan = { id: genId(), assessmentId: assessment.id, items };
     setPlan(plan);
+    // Workflow transition: only if results already generated (or questionnaire complete) and not archived
+    if (assessment.workflowState === 'RESULTATS_GENERES' || (assessment.workflowState === 'QUESTIONNAIRE_TERMINE' && scorecard)) {
+      setWorkflowState(assessment.id, 'PLAN_GENERE', { planGeneratedAt: new Date().toISOString() });
+    }
     return plan;
   };
 
@@ -947,8 +978,9 @@ export const AssessmentProvider: React.FC<{ children: React.ReactNode }> = ({ ch
   };
 
   const archiveAssessment = (id: string) => {
-    setAssessments(prev => prev.map(a => a.id===id ? { ...a, archivedAt: new Date().toISOString() } : a));
-    if (assessment?.id === id) setAssessment(a => a ? { ...a, archivedAt: new Date().toISOString() } : a);
+  const ts = new Date().toISOString();
+  setAssessments(prev => prev.map(a => a.id===id ? { ...a, archivedAt: ts, workflowState: 'ARCHIVE' } : a));
+  if (assessment?.id === id) setAssessment(a => a ? { ...a, archivedAt: ts, workflowState: 'ARCHIVE' } : a);
   };
 
   const resetAll = () => {

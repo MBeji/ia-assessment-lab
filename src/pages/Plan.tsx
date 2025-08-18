@@ -57,9 +57,51 @@ const Plan = () => {
 
   const selectorBar = (
     <div className="mb-4 flex flex-col gap-3">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-semibold">Plan d’action</h1>
+      <div className="flex items-center justify-between flex-wrap gap-3">
+        <h1 className="text-2xl font-semibold flex items-center gap-3">Plan d’action
+          {assessment && <Badge variant="secondary" className="uppercase tracking-wide">
+            {(() => {
+              switch(assessment.workflowState){
+                case 'INITIE': return 'Initié';
+                case 'QUESTIONNAIRE_EN_COURS': return 'Questionnaire';
+                case 'QUESTIONNAIRE_TERMINE': return 'Questionnaire terminé';
+                case 'RESULTATS_GENERES': return 'Résultats générés';
+                case 'PLAN_GENERE': return 'Plan généré';
+                case 'ARCHIVE': return 'Archivé';
+                default: return '—';
+              }
+            })()}
+          </Badge>}
+        </h1>
         <ImportExport />
+        {assessment && (
+          <div className="flex flex-wrap items-center gap-1.5 text-[10px] w-full md:w-auto">
+            {[
+              { id: 'INITIE', label: 'Initié' },
+              { id: 'QUESTIONNAIRE_EN_COURS', label: 'Questionnaire' },
+              { id: 'QUESTIONNAIRE_TERMINE', label: 'Terminé' },
+              { id: 'RESULTATS_GENERES', label: 'Résultats' },
+              { id: 'PLAN_GENERE', label: 'Plan' },
+            ].map(step => {
+              const order = ['INITIE','QUESTIONNAIRE_EN_COURS','QUESTIONNAIRE_TERMINE','RESULTATS_GENERES','PLAN_GENERE','ARCHIVE'];
+              const currIdx = order.indexOf(assessment.workflowState||'');
+              const stepIdx = order.indexOf(step.id);
+              const reached = currIdx >= stepIdx;
+              const active = assessment.workflowState === step.id;
+              return (
+                <div key={step.id} className={`flex items-center gap-1 ${active? 'font-semibold':''}`}>
+                  <span className={`h-4 w-4 rounded-full flex items-center justify-center text-[9px] border ${reached? 'bg-primary text-primary-foreground border-primary':'bg-muted text-muted-foreground'}`}>{stepIdx+1}</span>
+                  <span className={`${!reached? 'text-muted-foreground':''}`}>{step.label}</span>
+                  {step.id !== 'PLAN_GENERE' && <span className={`mx-1 h-px w-5 ${reached? 'bg-primary':'bg-muted'}`}></span>}
+                </div>
+              );
+            })}
+            {assessment.workflowState==='ARCHIVE' && <div className="flex items-center gap-1 font-semibold">
+              <span className="h-4 w-4 rounded-full flex items-center justify-center text-[9px] border bg-neutral-600 text-white border-neutral-600">A</span>
+              <span>Archivé</span>
+            </div>}
+          </div>
+        )}
       </div>
       <div className="flex flex-wrap gap-3 items-center">
         <label className="text-xs font-medium uppercase text-muted-foreground">Mission</label>

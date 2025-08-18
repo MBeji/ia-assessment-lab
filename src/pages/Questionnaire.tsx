@@ -4,6 +4,7 @@ import { Layout } from "@/components/Layout";
 import { SEO } from "@/components/SEO";
 import { useAssessment } from "@/context/AssessmentContext";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 
 const Questionnaire = () => {
@@ -149,13 +150,57 @@ const Questionnaire = () => {
         {(assessment || isCustom) && (
           <div className="flex flex-col gap-2 text-[11px] p-2 rounded border bg-muted/40">
             <div className="flex items-center justify-between">
-              <span>{assessment ? `Mission: ${assessment.id.slice(0,6)}` : 'Édition de modèle'}</span>
+              <span className="flex items-center gap-2">{assessment ? `Mission: ${assessment.id.slice(0,6)}` : 'Édition de modèle'}
+                {assessment && <Badge variant="secondary" className="uppercase tracking-wide">
+                  {(() => {
+                    switch(assessment.workflowState){
+                      case 'INITIE': return 'Initié';
+                      case 'QUESTIONNAIRE_EN_COURS': return 'Questionnaire';
+                      case 'QUESTIONNAIRE_TERMINE': return 'Questionnaire terminé';
+                      case 'RESULTATS_GENERES': return 'Résultats générés';
+                      case 'PLAN_GENERE': return 'Plan généré';
+                      case 'ARCHIVE': return 'Archivé';
+                      default: return '—';
+                    }
+                  })()}
+                </Badge>}
+              </span>
               {isCustom && (
                 <div className="flex items-center gap-2">
                   <Button size="sm" variant={editMode? 'secondary':'outline'} className="h-6 text-[11px]" onClick={()=> setEditMode(m=> !m)}>{editMode? 'Terminer':'Modifier'}</Button>
                 </div>
               )}
             </div>
+            {assessment && (
+              <div className="flex flex-col gap-1">
+                <div className="flex flex-wrap items-center gap-1.5 mt-1">
+                  {[
+                    { id: 'INITIE', label: 'Initié' },
+                    { id: 'QUESTIONNAIRE_EN_COURS', label: 'Questionnaire' },
+                    { id: 'QUESTIONNAIRE_TERMINE', label: 'Terminé' },
+                    { id: 'RESULTATS_GENERES', label: 'Résultats' },
+                    { id: 'PLAN_GENERE', label: 'Plan' },
+                  ].map(step => {
+                    const reachedOrder = ['INITIE','QUESTIONNAIRE_EN_COURS','QUESTIONNAIRE_TERMINE','RESULTATS_GENERES','PLAN_GENERE','ARCHIVE'];
+                    const currIdx = reachedOrder.indexOf(assessment.workflowState||'');
+                    const stepIdx = reachedOrder.indexOf(step.id);
+                    const reached = currIdx >= stepIdx;
+                    const active = assessment.workflowState === step.id;
+                    return (
+                      <div key={step.id} className={`flex items-center gap-1 text-[10px] ${active? 'font-semibold':''}`}>
+                        <span className={`h-4 w-4 rounded-full flex items-center justify-center text-[9px] border ${reached? 'bg-primary text-primary-foreground border-primary':'bg-muted text-muted-foreground'}`}>{stepIdx+1}</span>
+                        <span className={`${!reached? 'text-muted-foreground':''}`}>{step.label}</span>
+                        {step.id !== 'PLAN_GENERE' && <span className={`mx-1 h-px w-5 ${reached? 'bg-primary':'bg-muted'}`}></span>}
+                      </div>
+                    );
+                  })}
+                  {assessment.workflowState==='ARCHIVE' && <div className="flex items-center gap-1 text-[10px] font-semibold">
+                    <span className="h-4 w-4 rounded-full flex items-center justify-center text-[9px] border bg-neutral-600 text-white border-neutral-600">A</span>
+                    <span>Archivé</span>
+                  </div>}
+                </div>
+              </div>
+            )}
             {isCustom && !editMode && <span className="text-muted-foreground">Lecture seule. Cliquez "Modifier" pour activer l’édition.</span>}
             {isCustom && editMode && <span className="text-amber-600">Édition active – sauvegarde auto.</span>}
           </div>

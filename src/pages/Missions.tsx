@@ -8,7 +8,19 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from '@/components/ui/dropdown-menu';
 import { MoreHorizontal, BarChart2, ClipboardList, Edit3, RotateCcw } from 'lucide-react';
 
-const statusLabel = (a: any) => a.completedAt ? 'Clôturée' : 'En cours';
+const statusLabel = (a: any) => {
+  if (a.workflowState) {
+    switch(a.workflowState) {
+      case 'INITIE': return 'Initié';
+      case 'QUESTIONNAIRE_EN_COURS': return 'Questionnaire';
+      case 'QUESTIONNAIRE_TERMINE': return 'Questionnaire terminé';
+      case 'RESULTATS_GENERES': return 'Résultats générés';
+      case 'PLAN_GENERE': return 'Plan généré';
+      case 'ARCHIVE': return 'Archivé';
+    }
+  }
+  return a.completedAt ? 'Clôturée' : 'En cours';
+};
 
 const Missions = () => {
   const { assessments, selectAssessment, getAssessmentProgress, getAssessmentScorecard, exportAssessment, closeAssessment, archiveAssessment, reopenAssessment, plan } = useAssessment() as any;
@@ -65,7 +77,15 @@ const Missions = () => {
           return (
             <Card key={a.id} className="relative cursor-pointer transition hover:shadow-sm active:scale-[0.98]" onClick={(e)=> { e.stopPropagation(); selectAssessment(a.id); nav('/questionnaire'); }}>
               <CardHeader className="pb-3">
-                <CardTitle className="text-base flex items-center gap-2">{a.orgId.slice(0,6)} <span className={`text-[10px] px-1 rounded ${a.completedAt ? 'bg-emerald-600 text-white' : 'bg-blue-600 text-white'}`}>{statusLabel(a)}</span></CardTitle>
+                <CardTitle className="text-base flex items-center gap-2">{a.orgId.slice(0,6)} <span className={`text-[10px] px-1 rounded text-white ${
+                  a.workflowState === 'INITIE' ? 'bg-gray-500' :
+                  a.workflowState === 'QUESTIONNAIRE_EN_COURS' ? 'bg-blue-600' :
+                  a.workflowState === 'QUESTIONNAIRE_TERMINE' ? 'bg-indigo-600' :
+                  a.workflowState === 'RESULTATS_GENERES' ? 'bg-purple-600' :
+                  a.workflowState === 'PLAN_GENERE' ? 'bg-emerald-600' :
+                  a.workflowState === 'ARCHIVE' ? 'bg-neutral-600' :
+                  (a.completedAt ? 'bg-emerald-600' : 'bg-blue-600')
+                }`}>{statusLabel(a)}</span></CardTitle>
                 <CardDescription className="text-xs flex flex-col gap-0.5">
                   <span>Début: {new Date(a.startedAt).toLocaleDateString()} {a.updatedAt && <span>· Maj {new Date(a.updatedAt).toLocaleDateString()}</span>}</span>
                   {sc && <span>Score: {Math.round(sc.globalScore)}% · Maturité: {sc.maturityLevel}</span>}

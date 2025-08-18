@@ -61,12 +61,25 @@ export interface Assessment {
   completedAt?: string;
   archivedAt?: string; // archived (soft delete) timestamp
   templateId?: string; // template used
+  // Workflow state machine: INITIE -> QUESTIONNAIRE_EN_COURS -> QUESTIONNAIRE_TERMINE -> RESULTATS_GENERES -> PLAN_GENERE -> ARCHIVE
+  workflowState?: AssessmentWorkflowState;
+  questionnaireCompletedAt?: string; // timestamp when questionnaire finished
+  resultsGeneratedAt?: string; // when computeScores ran
+  planGeneratedAt?: string; // when plan created
   categoriesSnapshot?: Category[]; // preserve state at creation (for historical integrity)
   questionsSnapshot?: Question[];
   rulesSnapshot?: ActionRule[];
   closedDepartments?: DepartmentId[]; // partiellement clôturés
   categoryWeightsSnapshot?: Record<string, number>; // preserve category weights at time of closure if needed
 }
+
+export type AssessmentWorkflowState =
+  | 'INITIE'
+  | 'QUESTIONNAIRE_EN_COURS'
+  | 'QUESTIONNAIRE_TERMINE'
+  | 'RESULTATS_GENERES'
+  | 'PLAN_GENERE'
+  | 'ARCHIVE';
 
 export interface ResponseRow {
   id: string;
