@@ -74,9 +74,9 @@ const Missions = () => {
                 <div className="h-2 w-full bg-muted rounded overflow-hidden"><div className="h-full bg-primary" style={{width: pct+'%'}}/></div>
                 <p>Progression: {pct}% · Questions: {prog.answered}/{prog.total}</p>
                 <div className="flex items-center gap-2 pt-1">
-                  <Button size="icon" variant="secondary" className="h-7 w-7" title="Questionnaire" onClick={(e)=> { e.stopPropagation(); selectAssessment(a.id); nav('/questionnaire'); }}><Edit3 className="h-3.5 w-3.5" /></Button>
-                  <Button size="icon" variant="outline" className="h-7 w-7" title="Résultats" onClick={(e)=> { e.stopPropagation(); selectAssessment(a.id); nav('/resultats'); }}><BarChart2 className="h-3.5 w-3.5" /></Button>
-                  <Button size="icon" variant="outline" className="h-7 w-7" title="Plan" onClick={(e)=> { e.stopPropagation(); selectAssessment(a.id); nav('/plan'); }}><ClipboardList className="h-3.5 w-3.5" /></Button>
+                  <Button aria-label="Ouvrir questionnaire" size="icon" variant="secondary" className="h-7 w-7" title="Questionnaire" onClick={(e)=> { e.stopPropagation(); selectAssessment(a.id); nav('/questionnaire'); }}><Edit3 className="h-3.5 w-3.5" /></Button>
+                  <Button aria-label="Voir résultats" size="icon" variant="outline" className="h-7 w-7" title="Résultats" onClick={(e)=> { e.stopPropagation(); selectAssessment(a.id); nav('/resultats'); }}><BarChart2 className="h-3.5 w-3.5" /></Button>
+                  <Button aria-label="Voir plan" size="icon" variant="outline" className="h-7 w-7" title="Plan" onClick={(e)=> { e.stopPropagation(); selectAssessment(a.id); nav('/plan'); }}><ClipboardList className="h-3.5 w-3.5" /></Button>
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
                       <Button size="icon" variant="ghost" className="h-7 w-7" onClick={(e)=> e.stopPropagation()}><MoreHorizontal className="h-4 w-4" /></Button>

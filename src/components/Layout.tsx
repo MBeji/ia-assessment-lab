@@ -22,7 +22,8 @@ export const Layout: React.FC<{ children: React.ReactNode }>= ({ children }) => 
   useEffect(()=> { setOpen(false); }, [location.pathname]);
   return (
     <div className="min-h-screen bg-gradient-to-b from-background to-muted/30 flex flex-col">
-      <header className="sticky top-0 z-40 border-b bg-background/80 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+      <a href="#main" className="skip-link">Aller au contenu</a>
+      <header className="sticky top-0 z-40 border-b bg-background/80 backdrop-blur supports-[backdrop-filter]:bg-background/60" role="banner">
         <div className="container mx-auto flex h-14 items-center justify-between px-4">
           <div className="flex items-center gap-3">
             <button aria-label={open? 'Fermer le menu' : 'Ouvrir le menu'} className="md:hidden inline-flex h-9 w-9 items-center justify-center rounded-md border hover:bg-accent" onClick={()=> setOpen(o=> !o)}>
@@ -51,10 +52,10 @@ export const Layout: React.FC<{ children: React.ReactNode }>= ({ children }) => 
           </div>
         )}
       </header>
-      <main className="container mx-auto px-4 pt-6 pb-28 md:pb-10 flex-1 w-full">
+  <main id="main" className="container mx-auto px-4 pt-6 pb-28 md:pb-10 flex-1 w-full" role="main">
         {children}
       </main>
-      <footer className="border-t py-6 text-sm text-muted-foreground hidden md:block">
+  <footer className="border-t py-6 text-sm text-muted-foreground hidden md:block" role="contentinfo">
         <div className="container mx-auto px-4 flex flex-col md:flex-row items-center justify-between gap-2">
           <p>© {new Date().getFullYear()} SynapFlow. Tous droits réservés.</p>
           <div className="flex items-center gap-4">
@@ -65,7 +66,7 @@ export const Layout: React.FC<{ children: React.ReactNode }>= ({ children }) => 
         </div>
       </footer>
       {/* Bottom mobile nav */}
-      <nav className="md:hidden fixed bottom-0 inset-x-0 z-40 border-t bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/70 pb-[env(safe-area-inset-bottom)]">
+  <nav className="md:hidden fixed bottom-0 inset-x-0 z-40 border-t bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/70 pb-[env(safe-area-inset-bottom)]" aria-label="Navigation principale mobile">
         <ul className="flex items-stretch justify-around text-[11px]">
           <MobileLink to="/" icon={<Home className="h-4 w-4" />} label="Accueil" />
           <MobileLink to="/questionnaire" icon={<ClipboardList className="h-4 w-4" />} label="Quest." />
@@ -74,6 +75,7 @@ export const Layout: React.FC<{ children: React.ReactNode }>= ({ children }) => 
           <MobileLink to="/missions" icon={<ClipboardList className="h-4 w-4" />} label="Missions" />
         </ul>
       </nav>
+  <div aria-live="polite" aria-atomic="true" className="sr-only" id="a11y-live-region"></div>
     </div>
   );
 };
