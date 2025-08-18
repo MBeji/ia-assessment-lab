@@ -46,6 +46,7 @@ export interface Question {
   evidenceRequiredThreshold: number; // typically 4
   tags?: string[]; // ex: Gouvernance, Ethique
   riskLevel?: RiskLevel; // optional risk criticality for weighting
+  guidance?: string; // clarification / aide pour l'évaluateur
 }
 
 export interface Assessment {

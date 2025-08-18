@@ -59,6 +59,7 @@ const Questionnaire = () => {
                         <div className="flex-1">
                           <div className="font-medium text-xs mb-1">{q.code}</div>
                           <div className="text-sm leading-snug">{q.text}</div>
+                          {q.guidance && <div className="mt-1 text-[11px] text-muted-foreground leading-snug">{q.guidance}</div>}
                           {tpl.assessmentScope==='per-department' && q.appliesToDepartments && q.appliesToDepartments[0] !== 'ALL' && (
                             <div className="mt-2 flex flex-wrap gap-1 text-[10px] text-muted-foreground">{q.appliesToDepartments.map((d:any)=> <span key={d} className="px-1.5 py-0.5 rounded bg-border/40">{d}</span>)}</div>
                           )}
