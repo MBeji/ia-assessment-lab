@@ -120,6 +120,12 @@ const Plan = () => {
   const quickWins = p.items.filter(i => (i.impact !== 'L') && (i.effort !== 'H'));
   const completion = p.items.length? Math.round(100 * (p.items.filter(i=> i.status==='DONE').length / p.items.length)) : 0;
 
+  // Coverage of HIGH risk questions (answered & at least one related action) as a quality indicator
+  const highRiskQuestions = useMemo(()=> questions.filter(q=> q.riskLevel==='HIGH'), [questions]);
+  const answeredHighRisk = highRiskQuestions.filter(q=> responses.some(r=> r.assessmentId===assessment.id && r.questionId===q.id && !r.isNA && r.value!=null));
+  const coveredHighRisk = answeredHighRisk.filter(q=> p.items.some(it=> it.linkedTo.questionId===q.id));
+  const highRiskCoveragePct = highRiskQuestions.length? Math.round(100 * (coveredHighRisk.length / highRiskQuestions.length)) : 0;
+
   // Coverage summary
   const totalRelevant = assessment?.selectedDepartments.reduce((acc, d) => acc + questions.filter(q => q.categoryId && (q.appliesToDepartments.includes('ALL') || q.appliesToDepartments.includes(d))).length, 0) ?? 0;
   const answeredNonNA = responses.filter(r => assessment && r.assessmentId === assessment.id && assessment.selectedDepartments.includes(r.departmentId) && !r.isNA && r.value !== null).length;
@@ -170,6 +176,10 @@ const Plan = () => {
           <CardContent>
             <div className="text-4xl font-semibold mb-2">{completion}%</div>
             <div className="text-xs text-muted-foreground">{p.items.filter(i=>i.status==='DONE').length} / {p.items.length} actions terminées</div>
+            <div className="mt-3 text-[11px] flex flex-col gap-1">
+              <div className="font-medium">Couverture risques élevés</div>
+              <div>{coveredHighRisk.length} / {highRiskQuestions.length} questions HIGH avec action ({highRiskCoveragePct}%)</div>
+            </div>
           </CardContent>
         </Card>
 
