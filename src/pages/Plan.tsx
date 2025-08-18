@@ -3,6 +3,7 @@ import { Layout } from "@/components/Layout";
 import { SEO } from "@/components/SEO";
 import { useAssessment } from "@/context/AssessmentContext";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { cn } from '@/lib/utils';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -20,6 +21,7 @@ const Plan = () => {
   const [actionStatusFilter, setActionStatusFilter] = useState<'ALL'|'OPEN'|'IN_PROGRESS'|'DONE'>('ALL');
   const [sortByPriority, setSortByPriority] = useState(true);
   const [kanbanMode, setKanbanMode] = useState(false);
+  const [compactMode, setCompactMode] = useState(false);
   const [editingJustifId, setEditingJustifId] = useState<string|null>(null);
   useEffect(()=>{
     const map: Record<string,{score:number; maturity:string}> = {};
@@ -213,11 +215,12 @@ const Plan = () => {
             </select>
           </div>
           <button type="button" onClick={()=> setSortByPriority(s=> !s)} className="h-7 px-2 border rounded bg-background hover:bg-accent">Tri: {sortByPriority? 'Priorité' : 'Impact/Effort'}</button>
-          <button type="button" onClick={()=> setKanbanMode(m=> !m)} className="h-7 px-2 border rounded bg-background hover:bg-accent">Vue: {kanbanMode? 'Liste' : 'Kanban'}</button>
+          <button type="button" onClick={()=> setKanbanMode(m=> !m)} disabled={compactMode} className="h-7 px-2 border rounded bg-background hover:bg-accent disabled:opacity-40">Vue: {kanbanMode? 'Liste' : 'Kanban'}</button>
+          <button type="button" onClick={()=> setCompactMode(c=> !c)} disabled={kanbanMode} className="h-7 px-2 border rounded bg-background hover:bg-accent disabled:opacity-40">Mode: {compactMode? 'Standard' : 'Compact'}</button>
           {actionStatusFilter!=='ALL' && <button type="button" onClick={()=> setActionStatusFilter('ALL')} className="h-7 px-2 border rounded bg-background hover:bg-accent">Reset filtre</button>}
         </div>
-        {kanbanMode && <KanbanActions plan={p} setPlan={setPlan} />}
-  {!kanbanMode && <div className="grid md:grid-cols-3 gap-4 md:gap-6 mt-4">
+        {kanbanMode && !compactMode && <KanbanActions plan={p} setPlan={setPlan} />}
+        {!kanbanMode && !compactMode && <div className="grid md:grid-cols-3 gap-4 md:gap-6 mt-4">
           {(['0-90j','3-6m','6-12m'] as const).map(h => (
             <Card key={h}>
               <CardHeader><CardTitle>{h}</CardTitle></CardHeader>
@@ -264,6 +267,74 @@ const Plan = () => {
             </Card>
           ))}
         </div>}
+        {compactMode && !kanbanMode && (
+          <div className="mt-4 overflow-x-auto border rounded">
+            <table className="w-full text-[11px] align-top">
+              <thead className="bg-muted/40">
+                <tr className="text-left">
+                  <th className="p-2 font-medium">#</th>
+                  <th className="p-2 font-medium">Horizon</th>
+                  <th className="p-2 font-medium min-w-[240px]">Action</th>
+                  <th className="p-2 font-medium">Imp</th>
+                  <th className="p-2 font-medium">Eff</th>
+                  <th className="p-2 font-medium">P</th>
+                  <th className="p-2 font-medium">ROI</th>
+                  <th className="p-2 font-medium">Δ%</th>
+                  <th className="p-2 font-medium">Statut</th>
+                  <th className="p-2 font-medium">Justif.</th>
+                </tr>
+              </thead>
+              <tbody>
+                {p.items
+                  .filter(i => actionStatusFilter==='ALL' ? true : (i.status||'OPEN')===actionStatusFilter)
+                  .sort((a,b)=> sortByPriority ? (b.priorityScore||0)-(a.priorityScore||0) : (impactRank[b.impact]-impactRank[a.impact]) || (effortRank[a.effort]-effortRank[b.effort]))
+                  .map((i, idx)=> {
+                    return (
+                      <tr key={i.id || idx} className={cn('border-t hover:bg-accent/30', i.status==='DONE' && 'opacity-60')}> 
+                        <td className="p-2 align-top">{idx+1}</td>
+                        <td className="p-2 align-top whitespace-nowrap">{i.horizon}</td>
+                        <td className="p-2 align-top">
+                          <div className={cn('leading-snug', i.status==='DONE' && 'line-through')}>{i.text}</div>
+                          {i.duplicateGroupId && <div className="mt-1 text-[9px] inline-block px-1 rounded bg-amber-200 text-amber-900">Dup {i.duplicateGroupId.replace('DUP-','')}</div>}
+                        </td>
+                        <td className="p-2 align-top">{i.impact}</td>
+                        <td className="p-2 align-top">{i.effort}</td>
+                        <td className="p-2 align-top">{i.priorityScore ?? '-'}</td>
+                        <td className="p-2 align-top">{i.roiScore ?? '-'}</td>
+                        <td className="p-2 align-top">{i.deficiency!=null ? Math.round(i.deficiency*100) : '-'}</td>
+                        <td className="p-2 align-top">
+                          <select value={i.status || 'OPEN'} onChange={e=> {
+                            const v = e.target.value as any;
+                            if (v==='DONE' && !i.justification) { setEditingJustifId(i.id); }
+                            setPlan((pl:any)=> pl && pl.assessmentId===assessment.id ? ({ ...pl, items: pl.items.map((x:any)=> x===i? { ...x, status:v } : x) }) : pl);
+                          }} className="h-6 text-[10px] border rounded bg-background">
+                            <option value="OPEN">Ouv.</option>
+                            <option value="IN_PROGRESS">Enc.</option>
+                            <option value="DONE">Term.</option>
+                          </select>
+                        </td>
+                        <td className="p-2 align-top">
+                          {i.justification ? (
+                            <button className="underline" onClick={()=> setEditingJustifId(i.id)}>Voir</button>
+                          ) : (
+                            <button className="text-amber-600 underline" onClick={()=> setEditingJustifId(i.id)}>Ajouter</button>
+                          )}
+                          {editingJustifId===i.id && (
+                            <div className="mt-1 space-y-1">
+                              <textarea className="w-56 max-w-[60vw] text-[10px] border rounded p-1" placeholder="Justification / evidence" value={i.justification||''} onChange={e=> setPlan((pl:any)=> pl && pl.assessmentId===assessment.id ? ({ ...pl, items: pl.items.map((x:any)=> x===i? { ...x, justification:e.target.value } : x) }) : pl)} />
+                              <div className="flex gap-2">
+                                <button className="h-6 px-2 border rounded text-[10px]" onClick={()=> setEditingJustifId(null)}>Fermer</button>
+                              </div>
+                            </div>
+                          )}
+                        </td>
+                      </tr>
+                    );
+                  })}
+              </tbody>
+            </table>
+          </div>
+        )}
       </>}
 
       {sc && p && <div className="mt-6 flex justify-end gap-2">
