@@ -5,6 +5,7 @@ import { useAssessment } from "@/context/AssessmentContext";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { cn } from '@/lib/utils';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { exportElementAsPDF } from '@/lib/exportPdf';
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ImportExport } from "@/components/ImportExport";
@@ -140,7 +141,7 @@ const Plan = () => {
       {!sc && (
         <div className="text-sm text-muted-foreground">Aucune donnée exploitable pour générer un plan (aucune réponse notée).</div>
       )}
-      {sc && p && <>
+  {sc && p && <div id="plan-print-root">
         <Card>
           <CardHeader><CardTitle>Quick wins</CardTitle></CardHeader>
           <CardContent>
@@ -335,12 +336,13 @@ const Plan = () => {
             </table>
           </div>
         )}
-      </>}
+  </div>}
 
       {sc && p && <div className="mt-6 flex justify-end gap-2">
   <Button onClick={()=> exportPlanCSV(assessment.id)} variant="outline">CSV</Button>
         <Button onClick={()=> exportPlanXLSX(assessment.id)} variant="outline">XLSX</Button>
-        <Button onClick={()=> window.print()} variant="outline">Imprimer / PDF</Button>
+  <Button onClick={()=> exportElementAsPDF('#plan-print-root', `plan-${assessment.id.slice(0,6)}.pdf`)} variant="outline">PDF</Button>
+  <Button onClick={()=> window.print()} variant="outline">Imprimer</Button>
       </div>}
     </Layout>
   );
