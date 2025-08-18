@@ -1,5 +1,5 @@
-import { useState, useMemo } from "react";
-import { useNavigate } from "react-router-dom";
+import { useState, useMemo, useEffect } from "react";
+import { useNavigate, useLocation } from "react-router-dom";
 import { Layout } from "@/components/Layout";
 import { SEO } from "@/components/SEO";
 import { useAssessment } from "@/context/AssessmentContext";
@@ -8,8 +8,26 @@ import { Checkbox } from "@/components/ui/checkbox";
 
 const Questionnaire = () => {
   const nav = useNavigate();
-  const { assessment, templateId, templates, setTemplateId, responses, updateResponse } = useAssessment() as any;
+  const location = useLocation();
+  const { assessment, templateId, templates, setTemplateId, responses, updateResponse, computeScores, generatePlan } = useAssessment() as any;
   const [editMode, setEditMode] = useState(false);
+  const [autoAdvance, setAutoAdvance] = useState(false);
+  // If URL has ?edit=1 enable edit mode on mount
+  useEffect(()=> { const params = new URLSearchParams(location.search); if (params.get('edit')==='1') setEditMode(true); }, [location.search]);
+  // Track completion auto-advance
+  const tplRef = useMemo(()=> templates.find((t:any)=> t.id=== (templateId || templates[0]?.id)), [templates, templateId]);
+  useEffect(()=> {
+    if(!assessment || !editMode) return;
+    const selected = assessment.selectedDepartments;
+    const relevantQs = (tplRef?.questions||[]).filter((q:any)=> selected.some((d:string)=> q.appliesToDepartments.includes('ALL') || q.appliesToDepartments.includes(d)));
+    const answered = responses.filter((r:any)=> r.assessmentId===assessment.id && !r.isNA && r.value!=null).length;
+    const totalNeeded = relevantQs.length * (tplRef?.assessmentScope==='organization' ? 1 : selected.length);
+    if(totalNeeded>0 && answered>=totalNeeded && !autoAdvance) {
+      setAutoAdvance(true);
+      try { const sc = computeScores(); generatePlan(sc); } catch {}
+      setTimeout(()=> { nav('/resultats'); setTimeout(()=> nav('/plan'), 400); }, 200);
+    }
+  }, [responses, assessment, editMode, tplRef, autoAdvance, computeScores, generatePlan, nav]);
   // Always operate in preview/browse mode now
   const [previewTemplate, setPreviewTemplate] = useState(templateId || templates[0]?.id);
   const tpl = useMemo(()=> templates.find(t=> t.id === previewTemplate), [templates, previewTemplate]);
@@ -47,11 +65,13 @@ const Questionnaire = () => {
         {assessment && (
           <div className="flex flex-col gap-2 text-[11px] p-2 rounded border bg-muted/40">
             <div className="flex items-center justify-between">
-              <span>Mission active: {assessment.id.slice(0,6)}</span>
-              <Button size="sm" variant={editMode? 'secondary':'outline'} className="h-6 text-[11px]" onClick={()=> setEditMode(m=> !m)}>{editMode? 'Terminer édition':'Modifier réponses'}</Button>
+              <span>Mission: {assessment.id.slice(0,6)}</span>
+              <div className="flex items-center gap-2">
+                <Button size="sm" variant={editMode? 'secondary':'outline'} className="h-6 text-[11px]" onClick={()=> setEditMode(m=> !m)}>{editMode? 'Terminer':'Modifier'}</Button>
+              </div>
             </div>
-            {!editMode && <span className="text-muted-foreground">Lecture seule. Cliquez "Modifier réponses" pour activer l’édition.</span>}
-            {editMode && <span className="text-amber-600">Mode édition activé – vos changements sont sauvegardés automatiquement.</span>}
+            {!editMode && <span className="text-muted-foreground">Lecture seule. Cliquez "Modifier" pour activer l’édition.</span>}
+            {editMode && <span className="text-amber-600">Édition active – sauvegarde auto. {autoAdvance && 'Calcul & redirection en cours...'}</span>}
           </div>
         )}
         <div className="text-sm text-muted-foreground">{tpl?.description}</div>
