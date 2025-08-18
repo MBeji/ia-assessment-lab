@@ -67,6 +67,15 @@ const Questionnaire = () => {
     });
     return map;
   }, [tpl, tagFilter]);
+  // Helper lists for fillMode navigation
+  const orderedQuestionIds = useMemo(()=> tpl ? tpl.categories.flatMap(c => (filteredQuestionsByCat[c.id]||[]).map((q:any)=> q.id)) : [], [tpl, filteredQuestionsByCat]);
+  const isAnswered = (qid:string) => !!responses.find((r:any)=> assessment && r.assessmentId===assessment.id && r.questionId===qid && (r.isNA || r.value!=null));
+  const nextUnansweredAfter = (qid:string) => {
+    const idx = orderedQuestionIds.indexOf(qid);
+    for (let i=idx+1;i<orderedQuestionIds.length;i++){ if(!isAnswered(orderedQuestionIds[i])) return orderedQuestionIds[i]; }
+    for (let i=0;i<orderedQuestionIds.length;i++){ if(!isAnswered(orderedQuestionIds[i])) return orderedQuestionIds[i]; }
+    return undefined;
+  };
   const isCustom = previewTemplate.startsWith('custom_');
   const [editingQuestionId, setEditingQuestionId] = useState<string|undefined>();
   const [draftQuestion, setDraftQuestion] = useState<any>(null);
@@ -252,11 +261,11 @@ const Questionnaire = () => {
                   {questions.length===0 && (
                     <div className="text-[11px] text-muted-foreground">Aucune question{tagFilter!=='ALL' && ' pour ce tag'}.</div>
                   )}
-                  {questions.map((q:any)=> {
+          {questions.map((q:any, qIndex:number)=> {
                     const editing = editingQuestionId===q.id;
                     const resp = assessment ? responses.find((r:any)=> r.assessmentId===assessment.id && r.questionId===q.id) : null;
                     return (
-                      <div key={q.id} className="text-sm border rounded p-3 bg-muted/30">
+            <div key={q.id} id={"q-"+q.id} className="text-sm border rounded p-3 bg-muted/30 scroll-mt-20">
                         <div className="flex items-start justify-between gap-3">
                           <div className="flex-1">
                             {editing ? (
@@ -330,6 +339,33 @@ const Questionnaire = () => {
                               </div>
                               {q.allowNA && <label className="flex items-center gap-1"><Checkbox checked={resp?.isNA || false} onCheckedChange={(ck)=> updateResponse({ questionId: q.id, departmentId: assessment.selectedDepartments[0], value: null, isNA: !!ck })} /> <span>N/A</span></label>}
                               {resp && !resp.isNA && <div className="text-[10px] text-muted-foreground">Valeur: {resp.value}</div>}
+                              {/* Inline navigation */}
+                              <div className="mt-2 flex flex-col items-end gap-1">
+                                {(() => {
+                                  if (!assessment) return null;
+                                  const answeredNow = isAnswered(q.id);
+                                  const nextId = nextUnansweredAfter(q.id);
+                                  const allAnswered = orderedQuestionIds.every(isAnswered);
+                                  if (allAnswered) {
+                                    return (
+                                      <button type="button" className="h-7 px-3 rounded bg-emerald-600 text-white text-[11px]" onClick={()=> { try { computeScores(); } catch{} nav('/resultats'); setTimeout(()=> nav('/plan'), 400); }}>
+                                        Terminer & Voir le plan
+                                      </button>
+                                    );
+                                  }
+                                  if (answeredNow && nextId) {
+                                    return (
+                                      <button type="button" className="h-7 px-3 rounded border bg-background hover:bg-accent text-[11px]" onClick={()=> {
+                                        const el = document.getElementById('q-'+nextId); if(el) el.scrollIntoView({behavior:'smooth'});
+                                      }}>Suivant</button>
+                                    );
+                                  }
+                                  if (!answeredNow) {
+                                    return <span className="text-[10px] text-muted-foreground">Répondez pour activer "Suivant"</span>;
+                                  }
+                                  return null;
+                                })()}
+                              </div>
                             </div>
                           )}
                           {!fillMode && !isCustom && !editing && resp && <div className="text-xs px-2 py-1 rounded bg-background border">{resp.isNA? 'N/A' : resp.value}</div>}
@@ -342,8 +378,50 @@ const Questionnaire = () => {
             );
           })}
         </div>
+        {fillMode && assessment && tpl && (
+          <QuestionnaireFooter assessment={assessment} tpl={tpl} responses={responses} computeScores={computeScores} nav={nav} />
+        )}
       </div>
     </Layout>
+  );
+};
+
+// Inline lightweight footer component (kept here for simplicity)
+const QuestionnaireFooter: React.FC<{ assessment:any; tpl:any; responses:any[]; computeScores:Function; nav:Function; }> = ({ assessment, tpl, responses, computeScores, nav }) => {
+  // Compute completion ratio (similar logic to other pages)
+  const relevantQs = (tpl.questions||[]).filter((q:any)=> assessment.selectedDepartments.some((d:string)=> q.appliesToDepartments.includes('ALL') || q.appliesToDepartments.includes(d)));
+  const totalNeeded = relevantQs.length * (tpl.assessmentScope==='organization' ? 1 : assessment.selectedDepartments.length);
+  const answered = responses.filter((r:any)=> r.assessmentId===assessment.id && !r.isNA && r.value!=null && assessment.selectedDepartments.includes(r.departmentId)).length;
+  const ratio = totalNeeded>0 ? answered/totalNeeded : 0;
+  const pct = Math.round(ratio*100);
+  return (
+    <div className="mt-10 border-t pt-6">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 text-sm">
+        <div className="flex-1">
+          <div className="h-2 rounded bg-muted overflow-hidden mb-2"><div className="h-full bg-primary transition-all" style={{width: pct+'%'}} /></div>
+          <div className="text-[11px] text-muted-foreground">Progression: {answered}/{totalNeeded} ({pct}%)</div>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          <button
+            type="button"
+            className="h-9 px-4 rounded border bg-background hover:bg-accent text-xs"
+            onClick={()=> { try { computeScores(); } catch{} nav('/missions'); }}
+          >Sauvegarder & Sortir</button>
+          <button
+            type="button"
+            className="h-9 px-4 rounded border bg-background hover:bg-accent text-xs"
+            onClick={()=> { try { computeScores(); } catch{} nav('/resultats'); }}
+          >{ratio===1 ? 'Voir les résultats' : 'Résultats intermédiaires'}</button>
+          {ratio===1 && (
+            <button
+              type="button"
+              className="h-9 px-4 rounded bg-primary text-primary-foreground text-xs"
+              onClick={()=> { try { const sc = computeScores(); } catch{} nav('/plan'); }}
+            >Aller au plan</button>
+          )}
+        </div>
+      </div>
+    </div>
   );
 };
 
