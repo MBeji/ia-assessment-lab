@@ -727,37 +727,65 @@ export const AssessmentProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     if(!sc) return;
     const pl = plan && plan.assessmentId===id ? plan : undefined;
     if(!pl) return;
-    // Heuristic: for lowest scoring categories (<55%), propose up to 2 generic improvement suggestions based on low-scoring questions (<3 likert)
-    const catScoresArr = Object.entries(sc.categoryScores).sort((a,b)=> a[1]-b[1]);
-    const lowCats = catScoresArr.filter(([_,v])=> v < 55).slice(0,4);
-    const existingTexts = new Set(pl.items.map(i=> i.text.toLowerCase()));
-    const suggestions: PlanSuggestion[] = [];
-    lowCats.forEach(([cid, pct]) => {
-      const catQuestions = (a.questionsSnapshot||questions).filter(q=> q.categoryId===cid);
-      // compute avg per question across depts
-      const qScores = catQuestions.map(q => {
-        const rs = responses.filter(r => r.assessmentId===a.id && r.questionId===q.id && !r.isNA && r.value!=null);
-        const avg = rs.length? rs.reduce((s,r)=> s+(r.value||0),0)/rs.length : 0;
-        return { q, avg };
-      }).filter(x=> x.avg>0);
-      qScores.sort((a,b)=> a.avg - b.avg);
-      qScores.slice(0,2).forEach(({q, avg}) => {
-        const base = q.text.split(/[:.!?]/)[0].trim();
-        if(existingTexts.has(base.toLowerCase())) return;
-        const impact: ImpactLevel = 'H';
-        const effort: EffortLevel = 'M';
-        const horizon: Horizon = pct < 40 ? '0-90j' : '3-6m';
-        suggestions.push({
-          id: genId(),
-          text: `Améliorer ${base}`,
-          rationale: `Question faible (${avg.toFixed(1)}/5) dans catégorie à ${Math.round(pct)}%`,
-          horizon,
-          impact,
-          effort,
-          linkedTo: { categoryId: cid, questionId: q.id }
-        });
-      });
+    // Advanced heuristic:
+    // Importance Score = deficiency * riskMultiplier * weightFactor * varianceBoost
+    // deficiency = max(0, (target - avg)/target) with target=4
+    // riskMultiplier: HIGH 1.5, MEDIUM 1.2, LOW/undefined 1
+    // weightFactor = 1 + (question.weight-1)*0.25 (dampens very large weights if any)
+    // varianceBoost = 1 + (stdDev>=1 ? 0.25 : stdDev>=0.6 ? 0.15 : 0)
+    // Filter: avg < 4 and importanceScore >= 0.35
+    // Horizon: if deficiency>=0.5 or risk HIGH -> 0-90j else if deficiency>=0.3 -> 3-6m else 6-12m
+    const targetLikert = 4;
+    const riskWeight: Record<string, number> = { HIGH: 1.5, MEDIUM: 1.2, LOW: 1 };
+    const existingActionTexts = new Set(pl.items.map(i=> i.text.toLowerCase()));
+    const existingQCovered = new Set(pl.items.map(i=> i.linkedTo.questionId).filter(Boolean) as string[]);
+    const qs = (a.questionsSnapshot || questions);
+    interface QStat { q: Question; avg: number; std: number; deficiency: number; importance: number; varianceBoost: number; }
+    const stats: QStat[] = [];
+    qs.forEach(q => {
+      // collect responses for this assessment (all departments)
+      const rs = responses.filter(r => r.assessmentId===a.id && r.questionId===q.id && !r.isNA && r.value!=null);
+      if (!rs.length) return;
+      const values = rs.map(r=> r.value || 0);
+      const avg = values.reduce((s,v)=> s+v,0)/values.length;
+      if (avg >= targetLikert) return; // already good
+      const variance = values.reduce((s,v)=> s+Math.pow(v-avg,2),0)/values.length;
+      const std = Math.sqrt(variance);
+      const deficiency = Math.max(0, (targetLikert - avg)/targetLikert);
+      const riskMultiplier = riskWeight[q.riskLevel || 'LOW'] || 1;
+      const weightFactor = 1 + ((q.weight||1)-1)*0.25;
+      const varianceBoost = std>=1 ? 0.25 : std>=0.6 ? 0.15 : 0;
+      const importance = deficiency * riskMultiplier * weightFactor * (1+varianceBoost);
+      if (importance < 0.35) return; // low leverage
+      stats.push({ q, avg, std, deficiency, importance, varianceBoost });
     });
+    stats.sort((a,b)=> b.importance - a.importance);
+    // Limit suggestions to top 10 to avoid overload
+    const suggestions: PlanSuggestion[] = [];
+    for (const s of stats.slice(0,10)) {
+      if (existingQCovered.has(s.q.id)) continue; // already an action for this question
+      const base = s.q.text.split(/[:.!?]/)[0].trim();
+      const key = base.toLowerCase();
+      if (existingActionTexts.has(key)) continue;
+      const horizon: Horizon = (s.deficiency>=0.5 || s.q.riskLevel==='HIGH') ? '0-90j' : (s.deficiency>=0.3 ? '3-6m' : '6-12m');
+      const impact: ImpactLevel = s.q.riskLevel==='HIGH' ? 'H' : (s.q.riskLevel==='MEDIUM' ? 'H' : 'M');
+      const effort: EffortLevel = s.deficiency>=0.5 ? 'M' : 'L';
+      const rationaleParts: string[] = [];
+      rationaleParts.push(`Score ${s.avg.toFixed(1)}/5 (<${targetLikert})`);
+      rationaleParts.push(`Déficit ${(s.deficiency*100).toFixed(0)}%`);
+      if (s.q.riskLevel) rationaleParts.push(`Risque ${s.q.riskLevel}`);
+      if (s.varianceBoost>0) rationaleParts.push(`Variance inter-dépts (std=${s.std.toFixed(2)})`);
+      const rationale = rationaleParts.join(' · ');
+      suggestions.push({
+        id: genId(),
+        text: `Renforcer ${base}`,
+        rationale,
+        horizon,
+        impact,
+        effort,
+        linkedTo: { categoryId: s.q.categoryId, questionId: s.q.id }
+      });
+    }
     setPlan(prev => prev && prev.assessmentId===id ? { ...prev, suggestions } : prev);
   };
 
