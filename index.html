@@ -4,6 +4,8 @@
     <link rel="icon" type="image/svg+xml" href="/synapflow-icon.svg" />
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <link rel="manifest" href="/manifest.webmanifest" />
+  <meta name="theme-color" content="#0d1321" />
   <title>Audit de Maturité IA</title>
   <meta name="description" content="Évaluez la maturité IA par département et générez un plan d’action priorisé. Inspiré NIST AI RMF, ISO/IEC 23894/42001, EU AI Act." />
   <meta name="author" content="SynapFlow" />
@@ -21,5 +23,12 @@
   <body>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
+    <script>
+      if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+          navigator.serviceWorker.register('/sw.js').catch(()=>{});
+        });
+      }
+    </script>
   </body>
 </html>
