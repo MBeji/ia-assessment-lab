@@ -37,7 +37,7 @@ export const Layout: React.FC<{ children: React.ReactNode }>= ({ children }) => 
             ))}
           </nav>
           <div className="flex items-center gap-2">
-            <Button asChild variant="outline" size="sm" className="hidden sm:inline-flex"><Link to="/questionnaire">Commencer</Link></Button>
+            <Button size="sm" variant="outline" className="hidden sm:inline-flex" onClick={()=> alert('Authentification à implémenter')}>Login</Button>
           </div>
         </div>
         {/* Mobile slide-over menu */}
@@ -47,7 +47,7 @@ export const Layout: React.FC<{ children: React.ReactNode }>= ({ children }) => 
               {navItems.map(n => (
                 <NavLink key={n.to} to={n.to} className={({isActive}) => cn("px-3 py-2 rounded-md text-sm flex items-center justify-between hover:bg-accent", isActive && "bg-accent text-accent-foreground")}>{n.label}</NavLink>
               ))}
-              <Button asChild variant="secondary" size="sm" className="mt-2"><Link to="/questionnaire">Commencer l'évaluation</Link></Button>
+              <Button size="sm" variant="secondary" className="mt-2" onClick={()=> alert('Authentification à implémenter')}>Login</Button>
             </div>
           </div>
         )}
