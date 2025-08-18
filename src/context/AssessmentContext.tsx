@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useEffect, useMemo, useState } from "react";
 import { v4 as uuidv4 } from "uuid";
+import { toast } from '@/hooks/use-toast';
 import {
   ActionRule,
   AppStateSnapshot,
@@ -843,12 +844,14 @@ export const AssessmentProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     setAssessments(prev => prev.map(a => a.id===id ? { ...a, completedAt: new Date().toISOString() } : a));
     if (assessment?.id === id) setAssessment(a => a ? { ...a, completedAt: new Date().toISOString() } : a);
     if (USE_SUPABASE) setTimeout(()=> syncAssessmentInternal(id), 400);
+  try { toast({ title: 'Mission clôturée', description: id.slice(0,6) }); } catch {}
   };
 
   const reopenAssessment = (id: string) => {
     setAssessments(prev => prev.map(a => a.id===id ? { ...a, completedAt: undefined } : a));
     if (assessment?.id === id) setAssessment(a => a ? { ...a, completedAt: undefined } : a);
     if (USE_SUPABASE) setTimeout(()=> syncAssessmentInternal(id), 400);
+  try { toast({ title: 'Mission réouverte', description: id.slice(0,6) }); } catch {}
   };
 
   const exportAssessment = (id: string) => {
@@ -871,6 +874,7 @@ export const AssessmentProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       templateId: a.templateId,
     };
     exportJSON(payload, `assessment-${a.id.slice(0,6)}.json`);
+  try { toast({ title: 'Export JSON', description: 'Fichier prêt ('+a.id.slice(0,6)+')' }); } catch {}
   };
 
   const deleteAssessment = (id: string) => {
