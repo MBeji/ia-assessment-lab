@@ -12,7 +12,7 @@ const Results = lazy(()=> import('./pages/Results'));
 const Plan = lazy(()=> import('./pages/Plan'));
 const Admin = lazy(()=> import('./pages/Admin'));
 const Aide = lazy(()=> import('./pages/Aide'));
-const Referentiel = lazy(()=> import('./pages/Referentiel'));
+const Reference = lazy(()=> import('./pages/Reference'));
 const Missions = lazy(()=> import('./pages/Missions'));
 const NotFound = lazy(()=> import('./pages/NotFound'));
 import { AssessmentProvider } from "./context/AssessmentContext";
@@ -42,7 +42,7 @@ const App = () => (
               <Route path="/plan" element={<Plan />} />
               <Route path="/admin" element={<Admin />} />
               <Route path="/aide" element={<Aide />} />
-              <Route path="/referentiel" element={<Referentiel />} />
+              <Route path="/reference" element={<Reference />} />
               <Route path="/missions" element={<Missions />} />
               <Route path="/archives" element={<Missions />} />
               {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}

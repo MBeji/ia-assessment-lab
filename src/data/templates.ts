@@ -12,6 +12,11 @@ export const TEMPLATE_CORE_V1: QuestionnaireTemplate = {
   categories: SEED_CATEGORIES,
   questions: SEED_QUESTIONS,
   rules: SEED_RULES,
+  origin: "Interne – synthèse meilleures pratiques data/IA d'entreprise et frameworks génériques (strategy, data, MLOps, governance).",
+  whenToUse: "Première évaluation globale multi‑dimensions IA/GenAI dans une organisation cherchant un panorama équilibré.",
+  strengths: ["Couverture large des piliers essentiels","Adapté à un kick‑off de transformation IA","Compatible analyses par département"],
+  limitations: ["Moins profond sur conformité détaillée réglementaire","Ne remplace pas une évaluation dédiée du risque"],
+  usageGuidelines: "Noter chaque question 0–5. Utiliser NA si non applicable. Générer le plan puis suivre l'amélioration et la couverture des risques élevés." 
 };
 
 // Template 2: Transversal 360 model from user spec
@@ -200,6 +205,11 @@ export const TEMPLATE_TRANSVERSAL_V1: QuestionnaireTemplate = {
   categories: TRANSVERSAL_CATEGORIES,
   questions: TRANSVERSAL_QUESTIONS,
   rules: TRANSVERSAL_RULES,
+  origin: "Consolidation interne multi‑fonctions inspirée de frameworks digitaux et pratiques opérationnelles.",
+  whenToUse: "Cartographier la maturité digitale/IA par direction métier et aligner priorités transverses.",
+  strengths: ["Vision granulaire par département","Module commun pour comparabilité","Détection de variances inter‑départements"],
+  limitations: ["Temps de collecte plus long si nombreuses directions","Moins adapté si structure très centralisée"],
+  usageGuidelines: "Sélectionner les départements concernés. Noter. Filtrer par tags pour focaliser (sécurité, MLOps...). Exploiter la heatmap Tag×Horizon pour équilibrer les actions." 
 };
 
 // Template 3: Gartner-inspired capabilities model (organization-level)
@@ -321,6 +331,11 @@ export const TEMPLATE_GARTNER_V1: QuestionnaireTemplate = {
   categories: GARTNER_CATEGORIES,
   questions: GARTNER_QUESTIONS,
   rules: GARTNER_RULES,
+  origin: "Inspiration des publications Gartner sur AI Maturity / Data & Analytics capabilities (simplifié).",
+  whenToUse: "Cadrage stratégique top‑management, priorisation macro des capacités à renforcer.",
+  strengths: ["Structure capabilities claire","Focus stratégie / gouvernance","Lecture exécutive"],
+  limitations: ["Moins granulaire opérationnel MLOps","Pas de détail par département"],
+  usageGuidelines: "Approche organisationnelle unique. Utiliser pour revue de portefeuille et alignement sur investissements structurants." 
 };
 
 // (Final aggregated TEMPLATES export is appended after all template declarations.)
@@ -410,6 +425,11 @@ export const TEMPLATE_NIST_AIRMF_V1: QuestionnaireTemplate = {
   categories: NIST_CATEGORIES,
   questions: NIST_QUESTIONS,
   rules: NIST_RULES,
+  origin: "NIST AI Risk Management Framework 1.0 (résumé fonctionnel).",
+  whenToUse: "Évaluer la gouvernance et la maîtrise des risques IA avant audit externe ou mise en conformité EU AI Act.",
+  strengths: ["Orientation risques structurée","Lien naturel avec conformité et sûreté IA","Met focus sur cycle de vie"],
+  limitations: ["Ne couvre pas en profondeur valeur business / adoption","Version light – non exhaustive"],
+  usageGuidelines: "Impliquer risk/compliance/security. Croiser avec inventaire des systèmes IA. Prioriser mesures gouvernance & monitoring." 
 };
 
 // -------------------------------------------------------------
@@ -479,6 +499,11 @@ export const TEMPLATE_ISO_42001_V1: QuestionnaireTemplate = {
   categories: ISO42001_CATEGORIES,
   questions: ISO42001_QUESTIONS,
   rules: ISO42001_RULES,
+  origin: "Draft public ISO/IEC 42001 (AI Management System) – sélection de clauses clés.",
+  whenToUse: "Pré‑diagnostic avant lancement d’un programme de conformité / certification SGIA.",
+  strengths: ["Aligné management system","Favorise structuration processus","Complément à audits ISO existants"],
+  limitations: ["Version light, ne constitue pas un audit complet","Moins orienté performance produit IA"],
+  usageGuidelines: "Cartographier pratiques existantes vs exigences. Alimenter backlog de mise en conformité (politiques, registres, audits)." 
 };
 
 // -------------------------------------------------------------

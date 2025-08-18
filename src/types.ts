@@ -162,6 +162,11 @@ export interface QuestionnaireTemplate {
   questions: Question[];
   rules: ActionRule[];
   defaultDepartmentWeights?: Partial<Record<DepartmentId, number>>;
+  origin?: string; // source or inspiration (standard, framework)
+  whenToUse?: string; // guidance on selection contexts
+  strengths?: string[]; // key advantages
+  limitations?: string[]; // caveats
+  usageGuidelines?: string; // how to run/score/interpret
 }
 
 export interface AppStateSnapshot {

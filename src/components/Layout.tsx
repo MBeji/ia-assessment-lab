@@ -10,7 +10,7 @@ const navItems = [
   { to: "/resultats", label: "Résultats" },
   { to: "/plan", label: "Plan d’action" },
   { to: "/admin", label: "Admin" },
-  { to: "/referentiel", label: "Référentiel" },
+  { to: "/reference", label: "Références" },
   { to: "/missions", label: "Missions" },
   { to: "/aide", label: "Aide" },
 ];
@@ -60,7 +60,7 @@ export const Layout: React.FC<{ children: React.ReactNode }>= ({ children }) => 
           <p>© {new Date().getFullYear()} SynapFlow. Tous droits réservés.</p>
           <div className="flex items-center gap-4">
             <a href="/aide" className="hover:underline">Aide</a>
-            <a href="/referentiel" className="hover:underline">Référentiel</a>
+            <a href="/reference" className="hover:underline">Références</a>
             <a href="/" className="hover:underline">Accueil</a>
           </div>
         </div>
