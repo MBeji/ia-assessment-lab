@@ -47,6 +47,7 @@ export interface Question {
   tags?: string[]; // ex: Gouvernance, Ethique
   riskLevel?: RiskLevel; // optional risk criticality for weighting
   guidance?: string; // clarification / aide pour l'évaluateur
+  scaleDescriptors?: string[]; // descriptions niveaux 0..5 (longueur = choices.length)
 }
 
 export interface Assessment {

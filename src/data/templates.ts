@@ -53,12 +53,30 @@ const TRANSVERSAL_QUESTIONS: Question[] = [
   q("TR-04","TR-04","Culture et conduite du changement: plan d’acculturation, rituels, ambassadeurs.","TRANSVERSAL",ALL,false),
   q("TR-05","TR-05","Compétences: référentiel de compétences digitales/IA, plan de formation, mesure d’adoption.","TRANSVERSAL",ALL,false),
   q("TR-06","TR-06","Gouvernance des données: ownership, qualité, catalogage, glossaire, référentiels.","TRANSVERSAL",ALL,false),
-  { ...q("TR-07","TR-07","Sécurité et conformité: contrôle des accès, RGPD, gestion des risques, audits.","TRANSVERSAL",ALL,false,'HIGH',["Security","Compliance"]), guidance: "Ex: IAM centralisé, MFA, revues d'accès périodiques, registre traitements RGPD, cartographie risques cyber/IA, audits internes récents." },
+  { ...q("TR-07","TR-07","Sécurité et conformité: contrôle des accès, RGPD, gestion des risques, audits.","TRANSVERSAL",ALL,false,'HIGH',["Security","Compliance"]), guidance: "Ex: IAM centralisé, MFA, revues d'accès périodiques, registre traitements RGPD, cartographie risques cyber/IA, audits internes récents.", scaleDescriptors: [
+    "Aucun contrôle formalisé / ad hoc.",
+    "Contrôles basiques (mots de passe) mais non revus.",
+    "Processus partiels: quelques revues d'accès et registre partiel.",
+    "IAM structuré + registre RGPD complet, revues périodiques.",
+    "Gestion des risques intégrée, audits récurrents, KPIs sécurité suivis.",
+    "Optimisation continue, automatisation (Just-In-Time access), couverture exhaustive." ] },
   q("TR-08","TR-08","Architecture et intégration: cloud, API‑first, intégrations entre systèmes clés.","TRANSVERSAL",ALL,false),
   q("TR-09","TR-09","Pilotage de la valeur: objectifs, KPI, ROI et bénéfices mesurés post‑déploiement.","TRANSVERSAL",ALL,false),
   q("TR-10","TR-10","Excellence opérationnelle: process mining/lean, automatisation là où pertinent.","TRANSVERSAL",ALL,false),
-  { ...q("TR-11","TR-11","[IA] IA responsable: principes éthiques, DPIA/Risques IA, biais et explicabilité.","TRANSVERSAL",ALL,true,'HIGH',["AI Ethics","Risk"]), guidance: "Attendus: principes publiés, registres DPIA complétés, méthodologie d'audit biais, seuils explicabilité / trace des décisions." },
-  { ...q("TR-12","TR-12","[IA] Cycle de vie des modèles: dataOps/MLOps, monitoring, drift, réentraînement.","TRANSVERSAL",ALL,true,'MEDIUM',["MLOps","Lifecycle"]), guidance: "Présence: pipelines CI/CD modèles, monitoring dérive data/performance, triggers de réentraînement documentés, rollback automatisé." },
+  { ...q("TR-11","TR-11","[IA] IA responsable: principes éthiques, DPIA/Risques IA, biais et explicabilité.","TRANSVERSAL",ALL,true,'HIGH',["AI Ethics","Risk"]), guidance: "Attendus: principes publiés, registres DPIA complétés, méthodologie d'audit biais, seuils explicabilité / trace des décisions.", scaleDescriptors: [
+    "Aucun principe / aucune considération explicite.",
+    "Principes évoqués informellement, pas de mise en œuvre.",
+    "Principes rédigés, DPIA ponctuels, contrôle biais manuel.",
+    "Cadre responsable établi (policies, DPIA systématiques, métriques biais).",
+    "Explicabilité/biais intégrés pipelines CI/CD, reporting régulier.",
+    "Amélioration continue data éthique, audits externes, benchmarks public." ] },
+  { ...q("TR-12","TR-12","[IA] Cycle de vie des modèles: dataOps/MLOps, monitoring, drift, réentraînement.","TRANSVERSAL",ALL,true,'MEDIUM',["MLOps","Lifecycle"]), guidance: "Présence: pipelines CI/CD modèles, monitoring dérive data/performance, triggers de réentraînement documentés, rollback automatisé.", scaleDescriptors: [
+    "Déploiements manuels, pas de suivi.",
+    "Scripts isolés, monitoring basique (logs).",
+    "Pipelines partiels (build/deploy), métriques performance suivies.",
+    "CI/CD complet + monitoring dérive et alertes.",
+    "Feature store, tests biais/robustesse automatiques, rollback rapide.",
+    "Optimisation continue, auto-retraining gouverné, audit complet traçable." ] },
 
   // DG
   q("DG-01","DG-01","Sponsoring visible de la DG pour le digital/IA, avec objectifs publics.","DG",["DG"],true),

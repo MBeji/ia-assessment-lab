@@ -60,6 +60,14 @@ const Questionnaire = () => {
                           <div className="font-medium text-xs mb-1">{q.code}</div>
                           <div className="text-sm leading-snug">{q.text}</div>
                           {q.guidance && <div className="mt-1 text-[11px] text-muted-foreground leading-snug">{q.guidance}</div>}
+                          {q.scaleDescriptors && (
+                            <div className="mt-2 border rounded bg-background/60 p-2">
+                              <div className="text-[10px] font-medium mb-1">Barème indicatif (0→5)</div>
+                              <ul className="space-y-1 text-[10px] list-disc pl-4">
+                                {q.scaleDescriptors.map((d:string,idx:number)=>(<li key={idx}><span className="font-semibold">{idx}</span> {d}</li>))}
+                              </ul>
+                            </div>
+                          )}
                           {tpl.assessmentScope==='per-department' && q.appliesToDepartments && q.appliesToDepartments[0] !== 'ALL' && (
                             <div className="mt-2 flex flex-wrap gap-1 text-[10px] text-muted-foreground">{q.appliesToDepartments.map((d:any)=> <span key={d} className="px-1.5 py-0.5 rounded bg-border/40">{d}</span>)}</div>
                           )}
