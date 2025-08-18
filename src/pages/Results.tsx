@@ -181,10 +181,10 @@ const Results = () => {
     if(scorecard && assessment && scorecard.assessmentId===assessment.id) return scorecard;
     try { return assessment ? computeScores() : undefined; } catch { return undefined; }
   }, [scorecard, assessment?.id, computeScores]);
-  // Auto-generate plan when scorecard becomes available and navigate to plan if coming from auto-complete
+  // Génère le plan si absent mais ne redirige plus automatiquement
   useEffect(()=> {
     if(assessment && sc && (!plan || plan.assessmentId!==assessment.id)) {
-      try { const p = generatePlan(sc); if(performance?.getEntriesByName('auto-complete-assessment').length){ /* marker */ } } catch {}
+      try { generatePlan(sc); } catch {}
     }
   }, [sc, assessment?.id, plan, generatePlan]);
   const hasValidScorecard = !!sc && Object.keys(sc.categoryScores||{}).length>0;
@@ -218,14 +218,7 @@ const Results = () => {
   const answeredNonNA = responses.filter(r => r.assessmentId === assessment.id && assessment.selectedDepartments.includes(r.departmentId) && !r.isNA && r.value !== null).length;
   const remaining = Math.max(0, totalRelevant - answeredNonNA);
 
-  // If all answered and a plan exists auto-redirect to plan (streamlined flow) unless user came manually
-  useEffect(()=> {
-    if(assessment && sc && plan && plan.assessmentId===assessment.id && remaining===0) {
-      // Delay slight to allow user glimpse of results
-      const t = setTimeout(()=> { nav('/plan'); }, 800);
-      return ()=> clearTimeout(t);
-    }
-  }, [assessment?.id, sc?.assessmentId, plan?.assessmentId, remaining, nav]);
+  // Suppression de la redirection automatique vers le plan — l’utilisateur choisit maintenant.
 
   // Low coverage categories (<50%) listing
   const lowCoverage = categories.map(cat => {
