@@ -11,7 +11,7 @@ import { MoreHorizontal, BarChart2, ClipboardList, Edit3, RotateCcw } from 'luci
 const statusLabel = (a: any) => a.completedAt ? 'Clôturée' : 'En cours';
 
 const Missions = () => {
-  const { assessments, selectAssessment, getAssessmentProgress, getAssessmentScorecard, exportAssessment, closeAssessment, deleteAssessment, reopenAssessment, plan } = useAssessment() as any;
+  const { assessments, selectAssessment, getAssessmentProgress, getAssessmentScorecard, exportAssessment, closeAssessment, archiveAssessment, reopenAssessment, plan } = useAssessment() as any;
   const nav = useNavigate();
   const [query, setQuery] = useState('');
   const [sort, setSort] = useState<'updated'|'score'|'progress'>('updated');
@@ -20,6 +20,7 @@ const Missions = () => {
     return (assessments||[])
       .filter(a => {
         if (filter==='open' && a.completedAt) return false; if (filter==='closed' && !a.completedAt) return false; return true; })
+      .filter(a => !a.archivedAt)
       .filter(a => !query.trim() || a.orgId.toLowerCase().includes(query.toLowerCase()) || (a.templateId||'').toLowerCase().includes(query.toLowerCase()))
       .map(a => ({ a, prog: getAssessmentProgress(a.id), sc: getAssessmentScorecard(a.id) }))
       .sort((x,y)=> {
@@ -85,7 +86,7 @@ const Missions = () => {
                       <DropdownMenuItem onClick={()=> { selectAssessment(a.id); exportAssessment(a.id); }}>Exporter</DropdownMenuItem>
                       {!a.completedAt && <DropdownMenuItem onClick={()=> closeAssessment(a.id)}>Clôturer</DropdownMenuItem>}
                       {a.completedAt && <DropdownMenuItem onClick={()=> reopenAssessment(a.id)}><RotateCcw className="h-3 w-3 mr-1" />Réouvrir</DropdownMenuItem>}
-                      <DropdownMenuItem onClick={()=> { if(confirm('Supprimer ?')) deleteAssessment(a.id); }}>Supprimer</DropdownMenuItem>
+                      <DropdownMenuItem onClick={()=> { if(confirm('Archiver cette mission ?')) archiveAssessment(a.id); }}>Archiver</DropdownMenuItem>
                     </DropdownMenuContent>
                   </DropdownMenu>
                 </div>

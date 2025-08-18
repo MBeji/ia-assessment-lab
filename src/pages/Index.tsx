@@ -14,7 +14,7 @@ const sizes = ["< 100", "100-500", "500-2000", "> 2000"];
 
 const Index = () => {
   const nav = useNavigate();
-  const { departments, startAssessment, templates, setTemplateId, assessment, assessments, selectAssessment, closeAssessment, deleteAssessment, getAssessmentProgress, exportAssessment, categories, responses } = useAssessment();
+  const { departments, startAssessment, templates, setTemplateId, assessment, assessments, selectAssessment, closeAssessment, archiveAssessment, getAssessmentProgress, exportAssessment, categories, responses } = useAssessment() as any;
   const [name, setName] = useState("");
   const [sector, setSector] = useState(sectors[0]);
   const [size, setSize] = useState(sizes[0]);
@@ -28,7 +28,7 @@ const Index = () => {
   const [filterMode, setFilterMode] = useState<'all' | 'open' | 'closed'>('all');
   const sortedFilteredAssessments = [...(assessments||[])].filter(a => {
     if (filterMode==='open') return !a.completedAt; if (filterMode==='closed') return !!a.completedAt; return true;
-  }).sort((a,b)=> {
+  }).filter(a => !a.archivedAt).sort((a,b)=> {
     if (sortMode==='updated') return (new Date(b.updatedAt||b.startedAt).getTime()) - (new Date(a.updatedAt||a.startedAt).getTime());
     if (sortMode==='started') return (new Date(b.startedAt).getTime()) - (new Date(a.startedAt).getTime());
     if (sortMode==='progress') {
@@ -104,7 +104,7 @@ const Index = () => {
                     return (
                       <div key={a.id} className="border rounded p-2 flex flex-col gap-1">
                         <div className="flex items-center justify-between">
-                          <div className="font-medium text-xs">{a.orgId.slice(0,6)} · {a.templateId || 'modèle'} {a.completedAt && <span className="ml-1 text-[10px] px-1 rounded bg-emerald-600 text-white">Clôturé</span>}</div>
+                          <div className="font-medium text-xs">{a.orgId.slice(0,6)} · {a.templateId || 'modèle'} {a.completedAt && <span className="ml-1 text-[10px] px-1 rounded bg-emerald-600 text-white">Clôturé</span>} {a.archivedAt && <span className="ml-1 text-[10px] px-1 rounded bg-slate-500 text-white">Archivé</span>}</div>
                           <div className="h-2 w-24 bg-muted rounded overflow-hidden"><div className="h-full bg-primary" style={{width: pct+'%'}} /></div>
                         </div>
                         <div className="flex flex-wrap gap-1">
@@ -112,7 +112,7 @@ const Index = () => {
                           <Button size="sm" onClick={()=> { selectAssessment(a.id); nav('/resultats'); }}>Résultats</Button>
                           {!a.completedAt && <Button size="sm" variant="outline" onClick={()=> closeAssessment(a.id)}>Clôturer</Button>}
                           <Button size="sm" variant="ghost" onClick={()=> exportAssessment(a.id)}>Exporter</Button>
-                          <Button size="sm" variant="destructive" onClick={()=> { if (confirm('Supprimer cette évaluation ?')) deleteAssessment(a.id); }}>Suppr.</Button>
+                          <Button size="sm" variant="outline" onClick={()=> { if (confirm('Archiver cette mission ? (non supprimée)')) archiveAssessment(a.id); }}>Archiver</Button>
                         </div>
                         <div className="text-[10px] text-muted-foreground">Démarré: {new Date(a.startedAt).toLocaleDateString()} · {a.updatedAt ? 'Maj: '+ new Date(a.updatedAt).toLocaleDateString() : ''}</div>
                       </div>

@@ -59,6 +59,7 @@ export interface Assessment {
   startedAt: string;
   updatedAt?: string; // last modification timestamp
   completedAt?: string;
+  archivedAt?: string; // archived (soft delete) timestamp
   templateId?: string; // template used
   categoriesSnapshot?: Category[]; // preserve state at creation (for historical integrity)
   questionsSnapshot?: Question[];

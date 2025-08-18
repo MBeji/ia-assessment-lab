@@ -34,6 +34,7 @@ interface AssessmentContextValue extends AppStateSnapshot {
   closeAssessment: (id: string) => void;
   reopenAssessment?: (id: string) => void;
   deleteAssessment: (id: string) => void;
+  archiveAssessment: (id: string) => void;
   updateResponse: (payload: Omit<ResponseRow, "id" | "assessmentId"> & { id?: string }) => void;
   computeScores: () => Scorecard;
   generatePlan: (scorecard: Scorecard) => Plan;
@@ -932,6 +933,11 @@ export const AssessmentProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     }
   };
 
+  const archiveAssessment = (id: string) => {
+    setAssessments(prev => prev.map(a => a.id===id ? { ...a, archivedAt: new Date().toISOString() } : a));
+    if (assessment?.id === id) setAssessment(a => a ? { ...a, archivedAt: new Date().toISOString() } : a);
+  };
+
   const resetAll = () => {
     setOrganization(undefined);
     setAssessment(undefined);
@@ -987,6 +993,7 @@ export const AssessmentProvider: React.FC<{ children: React.ReactNode }> = ({ ch
   closeAssessment,
   reopenAssessment,
   deleteAssessment,
+  archiveAssessment,
   exportAssessment,
   exportPlanCSV,
   exportPlanXLSX,
