@@ -12,9 +12,9 @@ const Referentiel = () => {
       />
 
       <header className="mb-6">
-        <h1 className="text-3xl font-semibold">Référentiel consultants – Audit de Maturité IA</h1>
+        <h1 className="text-3xl font-semibold">(Archive) Référentiel consultants – Audit de Maturité IA</h1>
         <p className="text-muted-foreground mt-2">
-          Guide pas à pas pour mener une mission d'audit IA: processus, modes opératoires, livrables et ressources.
+          Cette page est conservée pour compatibilité. Le contenu est désormais intégré et enrichi dans la page <a href="/reference" className="underline">Références & Guides</a> (modèles + mission + ressources).
         </p>
       </header>
 
