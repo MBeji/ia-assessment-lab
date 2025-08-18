@@ -28,8 +28,13 @@ const Questionnaire = () => {
   };
   const [editMode, setEditMode] = useState(false);
   const [autoAdvance, setAutoAdvance] = useState(false);
-  // If URL has ?edit=1 enable edit mode on mount
-  useEffect(()=> { const params = new URLSearchParams(location.search); if (params.get('edit')==='1') setEditMode(true); }, [location.search]);
+  // Mode flags from query params
+  const [fillMode, setFillMode] = useState(false);
+  useEffect(()=> {
+    const params = new URLSearchParams(location.search);
+    if (params.get('edit')==='1') setEditMode(true);
+    if (params.get('fill')==='1') setFillMode(true);
+  }, [location.search]);
   // Track completion auto-advance
   const tplRef = useMemo(()=> templates.find((t:any)=> t.id=== (templateId || templates[0]?.id)), [templates, templateId]);
   useEffect(()=> {
@@ -100,6 +105,7 @@ const Questionnaire = () => {
       <SEO title="SynapFlow – Modèles" description="Parcourir un modèle de questionnaire IA" canonical={window.location.origin + "/questionnaire"} />
       <div className="max-w-5xl mx-auto space-y-6 py-4">
         <div className="space-y-4">
+          {!fillMode && (
           <div className="flex flex-col gap-4">
             <div className="flex flex-wrap items-center justify-between gap-4">
               <div>
@@ -130,6 +136,7 @@ const Questionnaire = () => {
               {!isCustom && <span className="text-muted-foreground">Modèle standard en lecture seule</span>}
             </div>
           </div>
+          )}
           {showImport && (
             <div className="w-full border rounded p-3 bg-muted/40 flex flex-col gap-2 text-[11px]">
               <div className="font-medium">Importer un modèle (JSON)</div>
@@ -254,13 +261,13 @@ const Questionnaire = () => {
                               <div className="mt-2 flex flex-wrap gap-1 text-[10px] text-muted-foreground">{q.appliesToDepartments.map((d:any)=> <span key={d} className="px-1.5 py-0.5 rounded bg-border/40">{d}</span>)}</div>
                             )}
                           </div>
-                          {isCustom && editMode && editing && (
+                          {!fillMode && isCustom && editMode && editing && (
                             <div className="flex flex-col gap-2 w-40 text-[11px] items-end">
                               <button className="h-7 px-2 border rounded bg-emerald-600 text-white" onClick={saveQuestion}>Sauver</button>
                               <button className="h-7 px-2 border rounded" onClick={cancelEditQuestion}>Annuler</button>
                             </div>
                           )}
-                          {isCustom && editMode && !editing && (
+                          {!fillMode && isCustom && editMode && !editing && (
                             <div className="flex flex-col gap-2 w-32 text-[10px] items-end">
                               <div className="flex gap-1 flex-wrap justify-end">
                                 <button className="h-6 px-2 border rounded bg-background" onClick={()=> startEditQuestion(q)}>Éditer</button>
@@ -269,7 +276,18 @@ const Questionnaire = () => {
                               </div>
                             </div>
                           )}
-                          {!isCustom && !editing && resp && <div className="text-xs px-2 py-1 rounded bg-background border">{resp.isNA? 'N/A' : resp.value}</div>}
+                          {fillMode && assessment && (
+                            <div className="flex flex-col gap-1 items-end w-44 text-[11px]">
+                              <div className="flex gap-1 flex-wrap">
+                                {[0,1,2,3,4,5].map(v=> (
+                                  <button key={v} onClick={()=> updateResponse({ questionId: q.id, departmentId: assessment.selectedDepartments[0], value: v, isNA: false })} className={`h-7 w-7 border rounded text-xs ${resp && resp.value===v && !resp.isNA ? 'bg-primary text-primary-foreground' : 'bg-background'}`}>{v}</button>
+                                ))}
+                              </div>
+                              {q.allowNA && <label className="flex items-center gap-1"><Checkbox checked={resp?.isNA || false} onCheckedChange={(ck)=> updateResponse({ questionId: q.id, departmentId: assessment.selectedDepartments[0], value: null, isNA: !!ck })} /> <span>N/A</span></label>}
+                              {resp && !resp.isNA && <div className="text-[10px] text-muted-foreground">Valeur: {resp.value}</div>}
+                            </div>
+                          )}
+                          {!fillMode && !isCustom && !editing && resp && <div className="text-xs px-2 py-1 rounded bg-background border">{resp.isNA? 'N/A' : resp.value}</div>}
                         </div>
                       </div>
                     );

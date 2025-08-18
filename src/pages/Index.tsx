@@ -58,7 +58,7 @@ const Index = () => {
       deptIds as any,
       template
     );
-  nav("/questionnaire?edit=1");
+  nav("/questionnaire?fill=1");
   };
 
   const hasOngoing = !!assessment;
