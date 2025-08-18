@@ -558,13 +558,30 @@ export const AssessmentProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     });
     const impactScore = { H: 3, M: 2, L: 1 } as const;
     const effortInverse = { H: 1, M: 2, L: 3 } as const;
+    // Classify actionType & compute enhanced priority (includes risk if question has riskLevel)
+    const riskWeight: Record<string, number> = { LOW: 1, MEDIUM: 1.15, HIGH: 1.35 };
     items.forEach(it => {
       const base = impactScore[it.impact] * 2 + effortInverse[it.effort];
       const def = it.deficiency ?? 0.5;
-      it.priorityScore = parseFloat((base * (0.5 + def)).toFixed(2));
-  // ROI potentiel simple = impactScore / (effort numeric)
-  const effortNum = { L:1, M:2, H:3 }[it.effort];
-  it.roiScore = parseFloat((impactScore[it.impact] / effortNum).toFixed(2));
+      // Derive risk multiplier from underlying question (if any)
+      let riskMultiplier = 1;
+      if (it.linkedTo.questionId) {
+        const q = questions.find(q=> q.id===it.linkedTo.questionId);
+        if (q?.riskLevel) riskMultiplier = riskWeight[q.riskLevel] || 1;
+      }
+      it.priorityScore = parseFloat((base * (0.5 + def) * riskMultiplier).toFixed(2));
+      // ROI potentiel simple = impactScore / (effort numeric)
+      const effortNum = { L:1, M:2, H:3 }[it.effort];
+      it.roiScore = parseFloat((impactScore[it.impact] / effortNum).toFixed(2));
+      // heuristic actionType
+      const txt = it.text.toLowerCase();
+      if (/gouvern|policy|politique|strat|comité|govern/.test(txt)) it.actionType = 'Governance';
+      else if (/donn|data|catalog|qualit|lineage|dataset/.test(txt)) it.actionType = 'Data';
+      else if (/mlops|devops|pipeline|plateforme|cloud|infra|monitor|observabil/.test(txt)) it.actionType = 'Tech';
+      else if (/process|procès|standard|workflow|industrialisation|intake/.test(txt)) it.actionType = 'Process';
+      else if (/compétence|formation|culture|accultur|talent|communaut/.test(txt)) it.actionType = 'People';
+      else if (/risque|risk|sécur|security|incident|biais|bias|impact/.test(txt)) it.actionType = 'Risk';
+      else it.actionType = 'General';
     });
     // Duplicate grouping via simple token Jaccard
     const normalize = (s: string) => s.toLowerCase().normalize('NFD').replace(/[^a-z0-9 ]/g,' ').replace(/\s+/g,' ').trim();

@@ -45,6 +45,7 @@ export interface Question {
   references: string[];
   evidenceRequiredThreshold: number; // typically 4
   tags?: string[]; // ex: Gouvernance, Ethique
+  riskLevel?: RiskLevel; // optional risk criticality for weighting
 }
 
 export interface Assessment {
@@ -127,7 +128,10 @@ export interface PlanItem {
   justification?: string; // evidence / rationale required when DONE
   roiScore?: number; // impact/effort ratio
   mergedInto?: string; // id of primary action if merged
+  actionType?: string; // classification (Governance, Data, Tech, Process, People, Risk)
 }
+
+export type RiskLevel = 'LOW' | 'MEDIUM' | 'HIGH';
 
 export interface PlanSuggestion {
   id: string;

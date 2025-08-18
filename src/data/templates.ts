@@ -29,7 +29,7 @@ const TRANSVERSAL_CATEGORIES: Category[] = [
   { id: "IT", name: "DSI / IT", description: "Architecture, sécurité, data et MLOps." },
 ];
 
-const q = (id: string, code: string, text: string, categoryId: string, applies: (DepartmentId|"ALL")[], isAI = false): Question => ({
+const q = (id: string, code: string, text: string, categoryId: string, applies: (DepartmentId|"ALL")[], isAI = false, riskLevel?: 'LOW'|'MEDIUM'|'HIGH', tags?: string[]): Question => ({
   id,
   code,
   text,
@@ -41,6 +41,8 @@ const q = (id: string, code: string, text: string, categoryId: string, applies: 
   allowNA: true,
   references: [],
   evidenceRequiredThreshold: 4,
+  riskLevel,
+  tags,
 });
 
 const TRANSVERSAL_QUESTIONS: Question[] = [
@@ -51,12 +53,12 @@ const TRANSVERSAL_QUESTIONS: Question[] = [
   q("TR-04","TR-04","Culture et conduite du changement: plan d’acculturation, rituels, ambassadeurs.","TRANSVERSAL",ALL,false),
   q("TR-05","TR-05","Compétences: référentiel de compétences digitales/IA, plan de formation, mesure d’adoption.","TRANSVERSAL",ALL,false),
   q("TR-06","TR-06","Gouvernance des données: ownership, qualité, catalogage, glossaire, référentiels.","TRANSVERSAL",ALL,false),
-  q("TR-07","TR-07","Sécurité et conformité: contrôle des accès, RGPD, gestion des risques, audits.","TRANSVERSAL",ALL,false),
+  q("TR-07","TR-07","Sécurité et conformité: contrôle des accès, RGPD, gestion des risques, audits.","TRANSVERSAL",ALL,false,'HIGH',["Security","Compliance"]),
   q("TR-08","TR-08","Architecture et intégration: cloud, API‑first, intégrations entre systèmes clés.","TRANSVERSAL",ALL,false),
   q("TR-09","TR-09","Pilotage de la valeur: objectifs, KPI, ROI et bénéfices mesurés post‑déploiement.","TRANSVERSAL",ALL,false),
   q("TR-10","TR-10","Excellence opérationnelle: process mining/lean, automatisation là où pertinent.","TRANSVERSAL",ALL,false),
-  q("TR-11","TR-11","[IA] IA responsable: principes éthiques, DPIA/Risques IA, biais et explicabilité.","TRANSVERSAL",ALL,true),
-  q("TR-12","TR-12","[IA] Cycle de vie des modèles: dataOps/MLOps, monitoring, drift, réentraînement.","TRANSVERSAL",ALL,true),
+  q("TR-11","TR-11","[IA] IA responsable: principes éthiques, DPIA/Risques IA, biais et explicabilité.","TRANSVERSAL",ALL,true,'HIGH',["AI Ethics","Risk"]),
+  q("TR-12","TR-12","[IA] Cycle de vie des modèles: dataOps/MLOps, monitoring, drift, réentraînement.","TRANSVERSAL",ALL,true,'MEDIUM',["MLOps","Lifecycle"]),
 
   // DG
   q("DG-01","DG-01","Sponsoring visible de la DG pour le digital/IA, avec objectifs publics.","DG",["DG"],true),
