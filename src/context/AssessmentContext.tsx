@@ -48,6 +48,10 @@ interface AssessmentContextValue extends AppStateSnapshot {
   getAssessmentProgress: (id: string) => { answered: number; total: number; ratio: number };
   getAssessmentScorecard: (id: string) => Scorecard | undefined;
   templates: typeof TEMPLATES;
+  customTemplates?: any[];
+  addCustomTemplate?: (tpl: any) => string | undefined;
+  removeCustomTemplate?: (id: string) => void;
+  exportTemplate?: (id: string) => void;
   setTemplateId: (id: string) => void;
   templateId: string;
   applyTemplate: (id: string, options?: { reset?: boolean }) => void;
@@ -82,6 +86,7 @@ export const AssessmentProvider: React.FC<{ children: React.ReactNode }> = ({ ch
   const [scorecard, setScorecard] = useState<Scorecard | undefined>();
   const [plan, setPlan] = useState<Plan | undefined>();
   const [templateId, setTemplateIdState] = useState<string>(TEMPLATES[0]?.id || "");
+  const [customTemplates, setCustomTemplates] = useState<any[]>([]);
   const [syncState, setSyncState] = useState<{ status: 'idle' | 'saving'; lastSyncAt?: string }>({ status: 'idle' });
   const syncDebounceRef = React.useRef<any>();
   const [scoreHistories, setScoreHistories] = useState<Record<string, { ts: string; globalScore: number }[]>>({});
@@ -196,7 +201,13 @@ export const AssessmentProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     templateId,
     };
     localStorage.setItem(STORAGE_KEY, JSON.stringify(snapshot));
+    localStorage.setItem(STORAGE_KEY+':customTemplates', JSON.stringify(customTemplates));
   }, [organization, assessments, assessment, responses, scorecard, plan, categories, departments, questions, rules, departmentWeights, categoryWeights, scoreHistories, templateId]);
+
+  // Load custom templates once
+  useEffect(()=> {
+    try { const raw = localStorage.getItem(STORAGE_KEY+':customTemplates'); if(raw) { const arr = JSON.parse(raw); if(Array.isArray(arr)) setCustomTemplates(arr); } } catch {}
+  }, []);
 
   // Initial remote pull if Supabase
   useEffect(()=>{ if(!USE_SUPABASE) return; (async()=>{ try {
@@ -985,7 +996,35 @@ export const AssessmentProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     answeredRatio,
   getAssessmentProgress,
   getAssessmentScorecard,
-  templates: TEMPLATES,
+  templates: [...TEMPLATES, ...customTemplates],
+  customTemplates,
+  addCustomTemplate: (tpl: any) => {
+    if(!tpl) return undefined;
+    try {
+      // Basic validation
+      if(!tpl.name || !Array.isArray(tpl.categories) || !Array.isArray(tpl.questions)) return undefined;
+      const idBase = (tpl.id && typeof tpl.id==='string') ? tpl.id : ('custom_'+genId().slice(0,8));
+      const id = [...TEMPLATES, ...customTemplates].some(t=> t.id===idBase) ? idBase+'_'+genId().slice(0,4) : idBase;
+      const safe = { ...tpl, id };
+      setCustomTemplates(prev => [...prev, safe]);
+      // persist immediately
+      setTimeout(()=> localStorage.setItem(STORAGE_KEY+':customTemplates', JSON.stringify([...customTemplates, safe])), 0);
+      return id;
+    } catch { return undefined; }
+  },
+  removeCustomTemplate: (id: string) => {
+    setCustomTemplates(prev => prev.filter(t=> t.id!==id));
+    setTimeout(()=> localStorage.setItem(STORAGE_KEY+':customTemplates', JSON.stringify(customTemplates.filter(t=> t.id!==id))), 0);
+  },
+  exportTemplate: (id: string) => {
+    const tpl = [...TEMPLATES, ...customTemplates].find(t=> t.id===id);
+    if(!tpl) return;
+    try {
+      const blob = new Blob([JSON.stringify(tpl, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a'); a.href = url; a.download = `template-${id}.json`; a.click(); URL.revokeObjectURL(url);
+    } catch {}
+  },
   setTemplateId: (id: string) => setTemplateIdState(id),
   templateId,
   applyTemplate,

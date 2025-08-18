@@ -9,7 +9,23 @@ import { Checkbox } from "@/components/ui/checkbox";
 const Questionnaire = () => {
   const nav = useNavigate();
   const location = useLocation();
-  const { assessment, templateId, templates, setTemplateId, responses, updateResponse, computeScores, generatePlan } = useAssessment() as any;
+  const { assessment, templateId, templates, setTemplateId, responses, updateResponse, computeScores, generatePlan, addCustomTemplate, exportTemplate, removeCustomTemplate } = useAssessment() as any;
+  const [showImport, setShowImport] = useState(false);
+  const [importError, setImportError] = useState<string|undefined>();
+  const onTemplateFile = (file: File) => {
+    setImportError(undefined);
+    const reader = new FileReader();
+    reader.onload = e => {
+      try {
+        const txt = e.target?.result as string;
+        const json = JSON.parse(txt);
+        const id = addCustomTemplate?.(json);
+        if(!id) { setImportError('Fichier invalide'); return; }
+        setTemplateId(id); setPreviewTemplate(id); setShowImport(false);
+      } catch { setImportError('JSON non valide'); }
+    };
+    reader.readAsText(file);
+  };
   const [editMode, setEditMode] = useState(false);
   const [autoAdvance, setAutoAdvance] = useState(false);
   // If URL has ?edit=1 enable edit mode on mount
@@ -54,13 +70,26 @@ const Questionnaire = () => {
             <h1 className="text-2xl font-semibold">Modèles de questionnaire</h1>
             <p className="text-xs text-muted-foreground">Sélectionnez un modèle et parcourez ses catégories et questions. (Cette page n'est plus utilisée pour la saisie des réponses.)</p>
           </div>
-          <div className="flex items-center gap-2 text-xs">
-            <select className="h-9 border rounded px-2" value={previewTemplate} onChange={e=> setPreviewTemplate(e.target.value)}>
+          <div className="flex items-center gap-2 text-xs flex-wrap">
+              <select className="h-9 border rounded px-2" value={previewTemplate} onChange={e=> setPreviewTemplate(e.target.value)}>
               {templates.map(t=> <option key={t.id} value={t.id}>{t.name}</option>)}
             </select>
             {tpl?.assessmentScope === 'organization' ? <span className="px-2 py-1 rounded bg-indigo-600 text-white text-[11px]">Organisation</span> : <span className="px-2 py-1 rounded bg-emerald-600 text-white text-[11px]">Multi-départements</span>}
             <button className="text-xs underline" onClick={()=> { setTemplateId(previewTemplate); nav('/'); }}>Utiliser ce modèle →</button>
+              <div className="flex items-center gap-1">
+                <button className="text-xs underline" onClick={()=> setShowImport(s=> !s)}>{showImport? 'Annuler import':'Importer'}</button>
+                <button className="text-xs underline" onClick={()=> exportTemplate?.(previewTemplate)}>Exporter</button>
+                {previewTemplate.startsWith('custom_') && <button className="text-xs underline text-destructive" onClick={()=> { if(confirm('Supprimer ce modèle personnalisé ?')) { removeCustomTemplate?.(previewTemplate); setPreviewTemplate(templates[0]?.id); } }}>Supprimer</button>}
+              </div>
           </div>
+          {showImport && (
+            <div className="w-full border rounded p-3 bg-muted/40 flex flex-col gap-2 text-[11px]">
+              <div className="font-medium">Importer un modèle (JSON)</div>
+              <input type="file" accept="application/json" onChange={e=> { const f=e.target.files?.[0]; if(f) onTemplateFile(f); }} />
+              {importError && <div className="text-destructive">{importError}</div>}
+              <div className="text-muted-foreground">Structure attendue: {`{"name":"...","assessmentScope":"organization|per-department","categories":[],"questions":[]}`}</div>
+            </div>
+          )}
         </div>
         {assessment && (
           <div className="flex flex-col gap-2 text-[11px] p-2 rounded border bg-muted/40">
