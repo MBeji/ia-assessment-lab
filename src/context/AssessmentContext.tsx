@@ -52,6 +52,8 @@ interface AssessmentContextValue extends AppStateSnapshot {
   addCustomTemplate?: (tpl: any) => string | undefined;
   removeCustomTemplate?: (id: string) => void;
   exportTemplate?: (id: string) => void;
+  updateCustomTemplate?: (id: string, mut: (tpl: any)=> any) => void;
+  duplicateTemplate?: (id: string) => string | undefined;
   setTemplateId: (id: string) => void;
   templateId: string;
   applyTemplate: (id: string, options?: { reset?: boolean }) => void;
@@ -1024,6 +1026,22 @@ export const AssessmentProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a'); a.href = url; a.download = `template-${id}.json`; a.click(); URL.revokeObjectURL(url);
     } catch {}
+  },
+  updateCustomTemplate: (id: string, mut: (tpl: any)=> any) => {
+    setCustomTemplates(prev => {
+      const next = prev.map(t => t.id===id ? mut({ ...t }) : t);
+      setTimeout(()=> localStorage.setItem(STORAGE_KEY+':customTemplates', JSON.stringify(next)), 0);
+      return next;
+    });
+  },
+  duplicateTemplate: (id: string) => {
+    const base = [...TEMPLATES, ...customTemplates].find(t=> t.id===id);
+    if(!base) return undefined;
+    const clone = JSON.parse(JSON.stringify(base));
+    clone.id = 'custom_'+genId().slice(0,8);
+    clone.name = clone.name + ' (copie)';
+    setCustomTemplates(prev => { const next=[...prev, clone]; setTimeout(()=> localStorage.setItem(STORAGE_KEY+':customTemplates', JSON.stringify(next)), 0); return next; });
+    return clone.id;
   },
   setTemplateId: (id: string) => setTemplateIdState(id),
   templateId,
