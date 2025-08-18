@@ -303,8 +303,234 @@ export const TEMPLATE_GARTNER_V1: QuestionnaireTemplate = {
   rules: GARTNER_RULES,
 };
 
+// (Final aggregated TEMPLATES export is appended after all template declarations.)
+
+// -------------------------------------------------------------
+// NEW TEMPLATE 4: NIST AI Risk Management Framework (GOVERN, MAP, MEASURE, MANAGE)
+// -------------------------------------------------------------
+// Scope: organization-wide assessment of AI risk management capabilities.
+// References: NIST AI RMF 1.0 (Functions & Categories) - kept concise (8 Q / function = 32 Q total light set)
+
+const NIST_CATEGORIES: Category[] = [
+  { id: "NIST_GOVERN", name: "GOVERN", description: "Culture, policies, roles, accountability pour la gestion des risques IA." },
+  { id: "NIST_MAP", name: "MAP", description: "Compréhension du contexte, use cases, parties prenantes et risques." },
+  { id: "NIST_MEASURE", name: "MEASURE", description: "Méthodes d’évaluation (validité, dérive, biais, sécurité)." },
+  { id: "NIST_MANAGE", name: "MANAGE", description: "Traitement des risques, réponse, amélioration continue." },
+];
+
+const nistQ = (id: string, code: string, text: string, categoryId: string, refs: string[]): Question => ({
+  id,
+  code,
+  text,
+  categoryId,
+  appliesToDepartments: ALL,
+  isAI: true,
+  weight: 1,
+  choices: [0,1,2,3,4,5],
+  allowNA: true,
+  references: refs,
+  evidenceRequiredThreshold: 4,
+});
+
+const NIST_QUESTIONS: Question[] = [
+  // GOVERN (culture, policies, roles)
+  nistQ("NIST-GOV-01","GOV-01","Politique d’IA responsable approuvée, couvrant équité, explicabilité, sécurité, confidentialité.","NIST_GOVERN",["NIST: GOVERN"]),
+  nistQ("NIST-GOV-02","GOV-02","Rôles & responsabilités IA (business, data, sécurité, juridique) formalisés et communiqués.","NIST_GOVERN",["NIST: GOVERN"]),
+  nistQ("NIST-GOV-03","GOV-03","Processus de supervision (comité) surveillant risques critiques et plans d’atténuation.","NIST_GOVERN",["NIST: GOVERN"]),
+  nistQ("NIST-GOV-04","GOV-04","Mécanismes de signalement d’incidents / préoccupations IA disponibles et suivis.","NIST_GOVERN",["NIST: GOVERN"]),
+  nistQ("NIST-GOV-05","GOV-05","Inventaire / registre des systèmes IA avec métadonnées (usage, owner, risque, données).","NIST_GOVERN",["NIST: GOVERN"]),
+  nistQ("NIST-GOV-06","GOV-06","Culture du risque: formations et campagnes de sensibilisation autour des risques IA.","NIST_GOVERN",["NIST: GOVERN"]),
+  nistQ("NIST-GOV-07","GOV-07","Alignement ESG / impacts sociétaux analysés pour cas sensibles.","NIST_GOVERN",["NIST: GOVERN"]),
+  nistQ("NIST-GOV-08","GOV-08","Indicateurs de performance & de risque IA revus périodiquement.","NIST_GOVERN",["NIST: GOVERN"]),
+  // MAP
+  nistQ("NIST-MAP-01","MAP-01","Processus d’identification des parties prenantes & usages IA avec classification du risque.","NIST_MAP",["NIST: MAP"]),
+  nistQ("NIST-MAP-02","MAP-02","Analyse du contexte réglementaire / conformité (RGPD, sectoriel) pour chaque cas IA.","NIST_MAP",["NIST: MAP"]),
+  nistQ("NIST-MAP-03","MAP-03","Évaluation des impacts potentiels (sécurité, biais, droits fondamentaux) pré-projet.","NIST_MAP",["NIST: MAP"]),
+  nistQ("NIST-MAP-04","MAP-04","Documentation initiale (objectifs, hypothèses, données) standardisée.","NIST_MAP",["NIST: MAP"]),
+  nistQ("NIST-MAP-05","MAP-05","Analyse des dépendances & interactions systèmes (chaîne de valeur, LLM externes).","NIST_MAP",["NIST: MAP"]),
+  nistQ("NIST-MAP-06","MAP-06","Critères d’acceptation de performance & de tolérance au risque définis avant développement.","NIST_MAP",["NIST: MAP"]),
+  nistQ("NIST-MAP-07","MAP-07","Procédure pour intégrer retours utilisateurs / parties prenantes dans la conception.","NIST_MAP",["NIST: MAP"]),
+  nistQ("NIST-MAP-08","MAP-08","Identification des données sensibles & obligations associées (PII, propriété, licences).","NIST_MAP",["NIST: MAP"]),
+  // MEASURE
+  nistQ("NIST-MEAS-01","MEAS-01","Tests de robustesse, performance, biais et explicabilité systématiques.","NIST_MEASURE",["NIST: MEASURE"]),
+  nistQ("NIST-MEAS-02","MEAS-02","Métriques d’incertitude / calibration suivies quand pertinent.","NIST_MEASURE",["NIST: MEASURE"]),
+  nistQ("NIST-MEAS-03","MEAS-03","Évaluation factuelle & toxicité pour systèmes GenAI / LLM.","NIST_MEASURE",["NIST: MEASURE"]),
+  nistQ("NIST-MEAS-04","MEAS-04","Surveillance dérive data/model & alertes déclenchées.","NIST_MEASURE",["NIST: MEASURE"]),
+  nistQ("NIST-MEAS-05","MEAS-05","Documentation (model cards, datasheets) complète et accessible.","NIST_MEASURE",["NIST: MEASURE"]),
+  nistQ("NIST-MEAS-06","MEAS-06","Evaluation continue (A/B, champion-challenger) planifiée.","NIST_MEASURE",["NIST: MEASURE"]),
+  nistQ("NIST-MEAS-07","MEAS-07","Analyse de sécurité IA (prompt injection, exfiltration) intégrée aux tests.","NIST_MEASURE",["NIST: MEASURE"]),
+  nistQ("NIST-MEAS-08","MEAS-08","Procédures de reproductibilité & traçabilité validées (versioning complet).","NIST_MEASURE",["NIST: MEASURE"]),
+  // MANAGE
+  nistQ("NIST-MAN-01","MAN-01","Plan de réponse aux incidents IA (détection, tri, réaction, RCA).","NIST_MANAGE",["NIST: MANAGE"]),
+  nistQ("NIST-MAN-02","MAN-02","Processus d’atténuation / contournement en production (rollback, kill switch).","NIST_MANAGE",["NIST: MANAGE"]),
+  nistQ("NIST-MAN-03","MAN-03","Mise à jour / réentraînement planifiés selon triggers mesurés (drift, performances).","NIST_MANAGE",["NIST: MANAGE"]),
+  nistQ("NIST-MAN-04","MAN-04","Gestion des fournisseurs / tiers (évaluation, SLA risques IA).","NIST_MANAGE",["NIST: MANAGE"]),
+  nistQ("NIST-MAN-05","MAN-05","Cycle d’amélioration continue (post-mortems IA, leçons capitalisées).","NIST_MANAGE",["NIST: MANAGE"]),
+  nistQ("NIST-MAN-06","MAN-06","Suivi de la valeur & recalibrage business case post-déploiement.","NIST_MANAGE",["NIST: MANAGE"]),
+  nistQ("NIST-MAN-07","MAN-07","Contrôles d’accès & gestion des secrets modèles/LLM maintenus à jour.","NIST_MANAGE",["NIST: MANAGE"]),
+  nistQ("NIST-MAN-08","MAN-08","Archivage / retrait sécurisé des modèles obsolètes & données associées.","NIST_MANAGE",["NIST: MANAGE"]),
+];
+
+const NIST_RULES: ActionRule[] = [
+  { id: "R-NIST-GOV-LOW", scope: "category", categoryId: "NIST_GOVERN", threshold: 2, actions: [
+    { horizon: "0-90j", text: "Établir politique IA responsable & registre des systèmes.", impact: "H", effort: "M" },
+    { horizon: "3-6m", text: "Mettre en place comité gouvernance & formation risques IA.", impact: "H", effort: "M" },
+  ]},
+  { id: "R-NIST-MEAS-LOW", scope: "category", categoryId: "NIST_MEASURE", threshold: 2, actions: [
+    { horizon: "0-90j", text: "Standardiser tests biais/robustesse & versioning complet.", impact: "H", effort: "M" },
+    { horizon: "3-6m", text: "Déployer monitoring dérive & banc évaluation GenAI.", impact: "H", effort: "M" },
+  ]},
+];
+
+export const TEMPLATE_NIST_AIRMF_V1: QuestionnaireTemplate = {
+  id: "nist_aimrf_v1",
+  name: "NIST AI RMF (v1)",
+  description: "Cadre NIST AI RMF (GOVERN, MAP, MEASURE, MANAGE) – gestion des risques IA.",
+  assessmentScope: "organization",
+  categories: NIST_CATEGORIES,
+  questions: NIST_QUESTIONS,
+  rules: NIST_RULES,
+};
+
+// -------------------------------------------------------------
+// NEW TEMPLATE 5: ISO/IEC 42001 (AI Management System) LIGHT
+// -------------------------------------------------------------
+// Focus on management system clauses adapted for AI governance.
+
+const ISO42001_CATEGORIES: Category[] = [
+  { id: "ISO_CONTEXT", name: "Contexte", description: "Contexte organisationnel, parties intéressées, portée du SGIA." },
+  { id: "ISO_LEADERSHIP", name: "Leadership", description: "Engagement direction, rôles, politique IA." },
+  { id: "ISO_PLANNING", name: "Planification", description: "Risques & opportunités, objectifs et plan d’action." },
+  { id: "ISO_SUPPORT", name: "Support", description: "Ressources, compétences, communication, documentation." },
+  { id: "ISO_OPERATION", name: "Opérations", description: "Conception, acquisition données, développement & contrôle." },
+  { id: "ISO_PERFORMANCE", name: "Évaluation Performance", description: "Monitoring, audit interne, revue de direction." },
+  { id: "ISO_IMPROVEMENT", name: "Amélioration", description: "Non-conformités, actions correctives, amélioration continue." },
+  { id: "ISO_RESPONSIBLE", name: "IA Responsable", description: "Éthique, impacts, transparence, surveillance humaine." },
+];
+
+const isoQ = (id: string, code: string, text: string, categoryId: string, refs: string[]): Question => ({
+  id,
+  code,
+  text,
+  categoryId,
+  appliesToDepartments: ALL,
+  isAI: true,
+  weight: 1,
+  choices: [0,1,2,3,4,5],
+  allowNA: true,
+  references: refs,
+  evidenceRequiredThreshold: 4,
+});
+
+const ISO42001_QUESTIONS: Question[] = [
+  isoQ("ISO-CONTEXT-01","CTX-01","Portée du système de management IA définie (procédures, exclusions).", "ISO_CONTEXT", ["ISO42001: 4"]),
+  isoQ("ISO-CONTEXT-02","CTX-02","Parties intéressées & exigences pertinentes identifiées.", "ISO_CONTEXT", ["ISO42001: 4.2"]),
+  isoQ("ISO-LEAD-01","LEAD-01","Engagement de la direction et politique IA signée et communiquée.", "ISO_LEADERSHIP", ["ISO42001: 5"]),
+  isoQ("ISO-LEAD-02","LEAD-02","Rôles, responsabilités & autorités SGIA attribués.", "ISO_LEADERSHIP", ["ISO42001: 5.3"]),
+  isoQ("ISO-PLAN-01","PLAN-01","Risques & opportunités IA identifiés (registre), plans de traitement définis.", "ISO_PLANNING", ["ISO42001: 6.1"]),
+  isoQ("ISO-PLAN-02","PLAN-02","Objectifs IA mesurables établis, indicateurs suivis.", "ISO_PLANNING", ["ISO42001: 6.2"]),
+  isoQ("ISO-SUP-01","SUP-01","Compétences & formations IA tracées (matrice, registres).", "ISO_SUPPORT", ["ISO42001: 7.2"]),
+  isoQ("ISO-SUP-02","SUP-02","Documentation SGIA contrôlée (versioning, accès).", "ISO_SUPPORT", ["ISO42001: 7.5"]),
+  isoQ("ISO-OP-01","OP-01","Processus de conception/développement IA documentés (revues, validation).", "ISO_OPERATION", ["ISO42001: 8"]),
+  isoQ("ISO-OP-02","OP-02","Gestion des données (qualité, licences, protection) intégrée au cycle de vie.", "ISO_OPERATION", ["ISO42001: 8.2"]),
+  isoQ("ISO-PERF-01","PERF-01","Surveillance & mesures de performance IA (KPI) réalisées et revues.", "ISO_PERFORMANCE", ["ISO42001: 9.1"]),
+  isoQ("ISO-PERF-02","PERF-02","Audits internes du SGIA planifiés et réalisés.", "ISO_PERFORMANCE", ["ISO42001: 9.2"]),
+  isoQ("ISO-IMP-01","IMP-01","Traitement des non-conformités & actions correctives tracés.", "ISO_IMPROVEMENT", ["ISO42001: 10.2"]),
+  isoQ("ISO-IMP-02","IMP-02","Amélioration continue démontrée (revues, mise à jour politique/objectifs).", "ISO_IMPROVEMENT", ["ISO42001: 10.3"]),
+  isoQ("ISO-RESP-01","RESP-01","Évaluations d’impact éthique / droits fondamentaux effectuées pour cas sensibles.", "ISO_RESPONSIBLE", ["ISO42001: Annexe A"],),
+  isoQ("ISO-RESP-02","RESP-02","Transparence & surveillance humaine définies (HITL/HOTL).", "ISO_RESPONSIBLE", ["ISO42001: Annexe A"]),
+];
+
+const ISO42001_RULES: ActionRule[] = [
+  { id: "R-ISO-LEAD-LOW", scope: "category", categoryId: "ISO_LEADERSHIP", threshold: 2, actions: [
+    { horizon: "0-90j", text: "Formaliser politique IA & rôles SGIA.", impact: "H", effort: "M" },
+    { horizon: "3-6m", text: "Déployer registre risques/opportunités & objectifs mesurables.", impact: "H", effort: "M" },
+  ]},
+  { id: "R-ISO-RESP-LOW", scope: "category", categoryId: "ISO_RESPONSIBLE", threshold: 2, actions: [
+    { horizon: "0-90j", text: "Mettre en place évaluations d’impact éthique & transparence.", impact: "H", effort: "M" },
+  ]},
+];
+
+export const TEMPLATE_ISO_42001_V1: QuestionnaireTemplate = {
+  id: "iso_42001_v1",
+  name: "ISO/IEC 42001 (light)",
+  description: "Système de management IA – clauses clés ISO/IEC 42001 (version light).",
+  assessmentScope: "organization",
+  categories: ISO42001_CATEGORIES,
+  questions: ISO42001_QUESTIONS,
+  rules: ISO42001_RULES,
+};
+
+// -------------------------------------------------------------
+// NEW TEMPLATE 6: EU AI Act Readiness (Obligations par exigences clés)
+// -------------------------------------------------------------
+
+const EUAI_CATEGORIES: Category[] = [
+  { id: "EU_RISK_MGMT", name: "Gestion des Risques", description: "Système de gestion des risques pour cas d’usage IA." },
+  { id: "EU_DATA_GOV", name: "Gouvernance Données", description: "Qualité, pertinence et documentation des données." },
+  { id: "EU_TECH_DOC", name: "Documentation Technique", description: "Dossier technique & enregistrement." },
+  { id: "EU_TRANSPARENCY", name: "Transparence", description: "Informations utilisateurs & étiquetage." },
+  { id: "EU_HUMAN", name: "Supervision Humaine", description: "Conception & mesures pour supervision efficace." },
+  { id: "EU_ROBUSTNESS", name: "Robustesse & Cyber", description: "Résilience, sécurité, précision, logs." },
+  { id: "EU_POSTMARKET", name: "Surveillance Post-Marché", description: "Suivi usage réel, incidents, retrait." },
+];
+
+const euQ = (id: string, code: string, text: string, categoryId: string, refs: string[]): Question => ({
+  id,
+  code,
+  text,
+  categoryId,
+  appliesToDepartments: ALL,
+  isAI: true,
+  weight: 1,
+  choices: [0,1,2,3,4,5],
+  allowNA: true,
+  references: refs,
+  evidenceRequiredThreshold: 4,
+});
+
+const EUAI_QUESTIONS: Question[] = [
+  euQ("EU-RISK-01","RISK-01","Processus structuré de gestion des risques IA (identification → traitement → réévaluation).","EU_RISK_MGMT",["EU AI Act: Art 9"]),
+  euQ("EU-RISK-02","RISK-02","Classification des cas IA (interdit, haut risque, limité, minimal) maintenue à jour.","EU_RISK_MGMT",["EU AI Act: Titre II"]),
+  euQ("EU-DATA-01","DATA-01","Datasets d’entraînement/test/validation documentés (sources, biais potentiels).","EU_DATA_GOV",["EU AI Act: Art 10"]),
+  euQ("EU-DATA-02","DATA-02","Contrôles qualité & représentativité (mesures de biais) exécutés et archivés.","EU_DATA_GOV",["EU AI Act: Art 10"]),
+  euQ("EU-DOC-01","DOC-01","Dossier technique complet (architecture, métriques, gestion risques).","EU_TECH_DOC",["EU AI Act: Art 11"],),
+  euQ("EU-DOC-02","DOC-02","Registre / enregistrement des systèmes haut risque préparé / soumis.","EU_TECH_DOC",["EU AI Act: Art 51"]),
+  euQ("EU-TRANS-01","TRANS-01","Informations utilisateurs (limitations, données, supervision) fournies clairement.","EU_TRANSPARENCY",["EU AI Act: Art 13"]),
+  euQ("EU-TRANS-02","TRANS-02","Étiquetage adéquat pour contenus générés (deepfake, IA générative).","EU_TRANSPARENCY",["EU AI Act: Art 52"]),
+  euQ("EU-HUM-01","HUM-01","Mesures de supervision humaine définies (intervention, override, compréhension).","EU_HUMAN",["EU AI Act: Art 14"]),
+  euQ("EU-HUM-02","HUM-02","Formation des opérateurs/superviseurs sur limitations & risques.","EU_HUMAN",["EU AI Act: Art 14"]),
+  euQ("EU-ROB-01","ROB-01","Tests de robustesse, précision & cybersécurité planifiés et rejoués périodiquement.","EU_ROBUSTNESS",["EU AI Act: Art 15"]),
+  euQ("EU-ROB-02","ROB-02","Journalisation (logs) suffisante pour traçabilité & audits.","EU_ROBUSTNESS",["EU AI Act: Art 12"]),
+  euQ("EU-PM-01","PM-01","Plan de surveillance post-marché (collecte incidents, métriques usage réel).","EU_POSTMARKET",["EU AI Act: Art 61"]),
+  euQ("EU-PM-02","PM-02","Procédures de rapport d’incidents graves & retrait mises en œuvre.","EU_POSTMARKET",["EU AI Act: Art 62"]),
+];
+
+const EUAI_RULES: ActionRule[] = [
+  { id: "R-EU-RISK-LOW", scope: "category", categoryId: "EU_RISK_MGMT", threshold: 2, actions: [
+    { horizon: "0-90j", text: "Établir classification cas IA & processus gestion risques.", impact: "H", effort: "M" },
+  ]},
+  { id: "R-EU-ROB-LOW", scope: "category", categoryId: "EU_ROBUSTNESS", threshold: 2, actions: [
+    { horizon: "0-90j", text: "Mettre en place tests robustesse & journalisation centralisée.", impact: "H", effort: "M" },
+  ]},
+];
+
+export const TEMPLATE_EU_AI_ACT_V1: QuestionnaireTemplate = {
+  id: "eu_ai_act_v1",
+  name: "EU AI Act Readiness (light)",
+  description: "Préparation conformité EU AI Act – exigences clés (version light).",
+  assessmentScope: "organization",
+  categories: EUAI_CATEGORIES,
+  questions: EUAI_QUESTIONS,
+  rules: EUAI_RULES,
+};
+
+// Final export of all templates (ordering: general → transversal → capabilities → frameworks)
 export const TEMPLATES: QuestionnaireTemplate[] = [
   TEMPLATE_CORE_V1,
   TEMPLATE_TRANSVERSAL_V1,
   TEMPLATE_GARTNER_V1,
+  TEMPLATE_NIST_AIRMF_V1,
+  TEMPLATE_ISO_42001_V1,
+  TEMPLATE_EU_AI_ACT_V1,
 ];
