@@ -568,6 +568,11 @@ export const TEMPLATE_EU_AI_ACT_V1: QuestionnaireTemplate = {
   categories: EUAI_CATEGORIES,
   questions: EUAI_QUESTIONS,
   rules: EUAI_RULES,
+  origin: "Règlement européen sur l'IA (EU AI Act) – synthèse d'articles clés (9,10,11,13,14,15,61,62).",
+  whenToUse: "Auto‑diagnostic initial de préparation réglementaire pour systèmes potentiellement classés haut risque.",
+  strengths: ["Focalisé sur obligations cœur","Support priorisation conformité rapide","Complément à RMF interne"],
+  limitations: ["Version light non exhaustive","Ne garantit pas conformité légale finale","Pas de scoring détaillé par obligation spécifique"],
+  usageGuidelines: "Identifier inventaire systèmes IA, classer les cas. Noter 0–5. Prioriser actions sur catégories <3 (likert). Coupler avec modèle NIST pour profondeur gouvernance & gestion continue." 
 };
 
 // Final export of all templates (ordering: general → transversal → capabilities → frameworks)
