@@ -8,6 +8,7 @@ import Index from "./pages/Index"; // landing kept eager for faster FCP
 import { Suspense, lazy } from "react";
 // Lazy-loaded pages (code splitting)
 const Questionnaire = lazy(()=> import('./pages/Questionnaire'));
+const Mission = lazy(()=> import('./pages/Mission'));
 const Results = lazy(()=> import('./pages/Results'));
 const Plan = lazy(()=> import('./pages/Plan'));
 const Admin = lazy(()=> import('./pages/Admin'));
@@ -38,6 +39,7 @@ const App = () => (
             <Routes>
               <Route path="/" element={<Index />} />
               <Route path="/questionnaire" element={<Questionnaire />} />
+              <Route path="/mission" element={<Mission />} />
               <Route path="/resultats" element={<Results />} />
               <Route path="/plan" element={<Plan />} />
               <Route path="/admin" element={<Admin />} />
