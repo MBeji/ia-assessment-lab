@@ -17,6 +17,8 @@ const Reference = lazy(()=> import('./pages/Reference'));
 const Missions = lazy(()=> import('./pages/Missions'));
 const NotFound = lazy(()=> import('./pages/NotFound'));
 import { AssessmentProvider } from "./context/AssessmentContext";
+import { MethodologyProvider } from "./context/MethodologyContext";
+const Methodologie = lazy(()=> import('./pages/Methodologie'));
 
 const queryClient = new QueryClient();
 
@@ -32,8 +34,9 @@ const App = () => (
     <TooltipProvider>
       <Toaster />
       <Sonner />
-      <AssessmentProvider>
-        <BrowserRouter>
+  <AssessmentProvider>
+    <MethodologyProvider>
+    <BrowserRouter>
           <Suspense fallback={<div className="p-8 text-sm text-muted-foreground">Chargement...</div>}>
             <RouteErrorBoundary>
             <Routes>
@@ -47,12 +50,14 @@ const App = () => (
               <Route path="/reference" element={<Reference />} />
               <Route path="/missions" element={<Missions />} />
               <Route path="/archives" element={<Missions />} />
+      <Route path="/methodologie" element={<Methodologie />} />
               {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
               <Route path="*" element={<NotFound />} />
             </Routes>
             </RouteErrorBoundary>
           </Suspense>
-        </BrowserRouter>
+    </BrowserRouter>
+    </MethodologyProvider>
       </AssessmentProvider>
     </TooltipProvider>
   </QueryClientProvider>

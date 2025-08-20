@@ -12,6 +12,7 @@ const navItems = [
   { to: "/admin", label: "Admin" },
   { to: "/reference", label: "Références" },
   { to: "/missions", label: "Missions" },
+  { to: "/methodologie", label: "Méthodo" },
   { to: "/aide", label: "Aide" },
 ];
 
@@ -73,6 +74,7 @@ export const Layout: React.FC<{ children: React.ReactNode }>= ({ children }) => 
           <MobileLink to="/resultats" icon={<BarChart2 className="h-4 w-4" />} label="Résult." />
           <MobileLink to="/plan" icon={<ListChecks className="h-4 w-4" />} label="Plan" />
           <MobileLink to="/missions" icon={<ClipboardList className="h-4 w-4" />} label="Missions" />
+          <MobileLink to="/methodologie" icon={<ClipboardList className="h-4 w-4" />} label="Méthodo" />
         </ul>
       </nav>
   <div aria-live="polite" aria-atomic="true" className="sr-only" id="a11y-live-region"></div>
