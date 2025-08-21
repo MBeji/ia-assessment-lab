@@ -14,6 +14,7 @@ const Plan = lazy(()=> import('./pages/Plan'));
 const Admin = lazy(()=> import('./pages/Admin'));
 const Aide = lazy(()=> import('./pages/Aide'));
 const Reference = lazy(()=> import('./pages/Reference'));
+const ReferenceUseCases = lazy(()=> import('./pages/ReferenceUseCases'));
 const Missions = lazy(()=> import('./pages/Missions'));
 const NotFound = lazy(()=> import('./pages/NotFound'));
 import { AssessmentProvider } from "./context/AssessmentContext";
@@ -48,6 +49,7 @@ const App = () => (
               <Route path="/admin" element={<Admin />} />
               <Route path="/aide" element={<Aide />} />
               <Route path="/reference" element={<Reference />} />
+              <Route path="/reference/usecases" element={<ReferenceUseCases />} />
               <Route path="/missions" element={<Missions />} />
               <Route path="/archives" element={<Missions />} />
       <Route path="/methodologie" element={<Methodologie />} />

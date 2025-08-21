@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="fr" class="h-full">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Référentiel Cas d'Usage IA</title>
+<script src="https://cdn.tailwindcss.com?plugins=typography"></script>
+<meta name="description" content="Référentiel des cas d'usage IA filtrable et triable" />
+</head>
+<body class="min-h-full bg-slate-50 text-slate-800 antialiased">
+  <header class="px-4 py-5 bg-white shadow-sm sticky top-0 z-30">
+    <div class="max-w-7xl mx-auto flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
+      <div>
+        <h1 class="text-2xl font-semibold tracking-tight">Référentiel Cas d'Usage IA</h1>
+        <p class="text-sm text-slate-500">Filtrez, recherchez et triez les opportunités IA par département.</p>
+      </div>
+      <div class="flex flex-col md:flex-row gap-3 w-full md:w-auto">
+        <div class="flex items-stretch gap-2">
+          <input id="searchInput" type="text" placeholder="Recherche mots-clés..." class="flex-1 md:w-72 rounded-md border border-slate-300 bg-white px-3 py-2 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+          <select id="deptFilter" class="rounded-md border border-slate-300 bg-white px-3 py-2 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
+            <option value="">Tous départements</option>
+          </select>
+        </div>
+        <button id="resetBtn" class="rounded-md bg-slate-100 hover:bg-slate-200 text-slate-700 text-sm px-3 py-2 font-medium shadow-sm">Réinitialiser</button>
+      </div>
+    </div>
+  </header>
+
+  <main class="max-w-7xl mx-auto px-4 py-6">
+    <div class="overflow-auto rounded-lg shadow-sm ring-1 ring-black/5 bg-white">
+      <table class="min-w-full border-collapse text-sm" id="usecaseTable">
+        <thead class="bg-slate-100 text-slate-700 text-xs uppercase tracking-wide sticky top-[73px] z-20">
+          <tr>
+            <th data-col="department" class="px-3 py-2 text-left font-semibold select-none cursor-pointer">Département <span class="sort-indicator"></span></th>
+            <th data-col="use_case" class="px-3 py-2 text-left font-semibold select-none cursor-pointer">Cas d’usage <span class="sort-indicator"></span></th>
+            <th data-col="description" class="px-3 py-2 text-left font-semibold select-none cursor-pointer w-[340px]">Description <span class="sort-indicator"></span></th>
+            <th data-col="roi_potential" class="px-3 py-2 text-left font-semibold select-none cursor-pointer">ROI potentiel <span class="sort-indicator"></span></th>
+            <th data-col="complexity" class="px-3 py-2 text-left font-semibold select-none cursor-pointer">Complexité <span class="sort-indicator"></span></th>
+            <th data-col="examples" class="px-3 py-2 text-left font-semibold select-none cursor-pointer w-[260px]">Exemples <span class="sort-indicator"></span></th>
+            <th data-col="impact" class="px-3 py-2 text-left font-semibold select-none cursor-pointer w-[260px]">Impact <span class="sort-indicator"></span></th>
+          </tr>
+        </thead>
+        <tbody id="tbody" class="divide-y divide-slate-100"></tbody>
+      </table>
+      <div id="emptyState" class="hidden p-8 text-center text-sm text-slate-500">Aucun cas d’usage ne correspond aux filtres.</div>
+    </div>
+  </main>
+
+  <footer class="max-w-7xl mx-auto px-4 py-10 text-[11px] text-slate-500">
+    Généré côté client · Tri & filtres instantanés · © 2025
+  </footer>
+
+<script>
+// Données source (collées en dur conformément à la demande sans backend)
+const DATA = [
+  {"department":"Ressources Humaines","use_case":"Tri et présélection des CV","description":"Analyse automatique des CV et classement selon la fiche de poste via NLP.","roi_potential":"High","complexity":"Medium","examples":["Matching compétences-fiche de poste","Classement automatique des CV"],"impact":["Gain de temps recrutement 50%","Réduction erreurs sélection"]},
+  {"department":"Ressources Humaines","use_case":"Parsing web (LinkedIn, CVthèques)","description":"Recherche automatisée de profils correspondant aux fiches de poste.","roi_potential":"High","complexity":"High","examples":["Extraction LinkedIn","Scraping CV avec filtres intelligents"],"impact":["Pipeline candidats élargi","Temps sourcing -40%"]},
+  {"department":"Ressources Humaines","use_case":"Entretiens par IA","description":"Conducteur d'entretien automatisé et analyse vocale/émotionnelle.","roi_potential":"Medium","complexity":"High","examples":["Chatbot entretien structuré","Scoring des réponses candidat"],"impact":["Standardisation évaluation","Gain de temps RH 30%"]},
+  {"department":"Ressources Humaines","use_case":"Chatbot salarié","description":"Réponses automatiques aux questions RH fréquentes (congés, paie, avantages).","roi_potential":"Medium","complexity":"Low","examples":["Chatbot RH sur Teams/Slack","FAQ automatisée"],"impact":["Charge RH -40%","Disponibilité 24/7"]},
+  {"department":"Ressources Humaines","use_case":"Formation personnalisée","description":"Recommandations de parcours de formation via IA.","roi_potential":"Medium","complexity":"Medium","examples":["Adaptive learning","MOOC personnalisés"],"impact":["Meilleure montée en compétences","Satisfaction employés"]},
+  {"department":"Ventes","use_case":"Chatbot commercial client","description":"Qualification automatique des prospects et réponses aux clients.","roi_potential":"High","complexity":"Medium","examples":["Assistant site web","Qualification leads via chatbot"],"impact":["Plus de leads traités","Cycle vente réduit"]},
+  {"department":"Ventes","use_case":"Scoring prédictif des leads","description":"Priorisation automatique des prospects avec algorithmes prédictifs.","roi_potential":"High","complexity":"Medium","examples":["CRM avec scoring IA","Alertes sur leads chauds"],"impact":["Taux conversion +15%","Gain efficacité commerciale"]},
+  {"department":"Ventes","use_case":"Génération de propositions commerciales","description":"Création automatique d’offres ou devis selon le client.","roi_potential":"High","complexity":"Medium","examples":["Auto-remplissage d’offres","Bundles IA recommandés"],"impact":["Gain temps 40%","Réactivité accrue"]},
+  {"department":"Marketing","use_case":"Segmentation intelligente","description":"Regroupement clients automatisé selon comportements et données.","roi_potential":"High","complexity":"Medium","examples":["Clustering clients ML","Ciblage personnalisé"],"impact":["Conversion +15%","ROI marketing amélioré"]},
+  {"department":"Marketing","use_case":"Personnalisation campagnes","description":"Création automatique de messages marketing adaptés à chaque cible.","roi_potential":"High","complexity":"Medium","examples":["Emails dynamiques IA","Publicités personnalisées"],"impact":["Taux clic +20%","Engagement client"]},
+  {"department":"Marketing","use_case":"Analyse des sentiments","description":"Surveillance réseaux sociaux pour identifier avis et tendances.","roi_potential":"Medium","complexity":"Low","examples":["Monitoring Twitter/LinkedIn","Tableau bord image"],"impact":["Réaction rapide aux crises","Amélioration marque"]},
+  {"department":"Marketing","use_case":"Génération de contenu","description":"Création automatique de posts, blogs, publicités via IA générative.","roi_potential":"High","complexity":"Low","examples":["Posts LinkedIn auto","Bannières IA"],"impact":["Gain temps 60%","Créativité augmentée"]},
+  {"department":"Achats","use_case":"Rédaction RFP","description":"Génération automatique d’appels d’offres optimisés.","roi_potential":"High","complexity":"Medium","examples":["Documents standards IA","Appels d’offres structurés"],"impact":["Gain temps 50%","Meilleur cadrage fournisseurs"]},
+  {"department":"Achats","use_case":"Analyse réponses RFP","description":"Évaluation IA des propositions fournisseurs.","roi_potential":"High","complexity":"Medium","examples":["Scoring réponses","Comparaison objective offres"],"impact":["Sélection plus fiable","Gain temps analyse"]},
+  {"department":"Achats","use_case":"Réponse IA aux appels d'offres","description":"Préparation automatique des propositions commerciales.","roi_potential":"High","complexity":"Medium","examples":["Auto-remplissage réponses","Qualité homogène"],"impact":["Temps réponse -60%","Standardisation documents"]},
+  {"department":"Finance","use_case":"Automatisation comptable","description":"Lecture factures, saisie et rapprochement automatisés.","roi_potential":"High","complexity":"Low","examples":["OCR factures","RPA compta"],"impact":["Gain temps 60%","Moins erreurs saisie"]},
+  {"department":"Finance","use_case":"Prévisions financières IA","description":"Projection de cash-flow et budgets via ML.","roi_potential":"High","complexity":"Medium","examples":["Forecast automatisé","Planification budgétaire IA"],"impact":["Visibilité accrue","Meilleure allocation ressources"]},
+  {"department":"Finance","use_case":"Détection de fraude","description":"Identification transactions suspectes avec IA.","roi_potential":"High","complexity":"High","examples":["Alertes temps réel","Analyse pattern suspect"],"impact":["Pertes réduites","Conformité accrue"]},
+  {"department":"Opérations","use_case":"Maintenance prédictive","description":"Prévision des pannes machines via capteurs IoT + IA.","roi_potential":"High","complexity":"High","examples":["Surveillance production","Alertes panne anticipées"],"impact":["Moins arrêts imprévus","Coûts maintenance réduits"]},
+  {"department":"Opérations","use_case":"Optimisation logistique","description":"Planification des itinéraires et gestion stock via IA.","roi_potential":"High","complexity":"Medium","examples":["Réduction coûts transport","Stocks optimisés"],"impact":["Coûts -15%","Délais livraison améliorés"]},
+  {"department":"Direction","use_case":"Analyse stratégique IA","description":"Tableaux de bord et prévisions automatisés.","roi_potential":"High","complexity":"Medium","examples":["Synthèse KPIs","Simulation scénarios"],"impact":["Décisions plus rapides","Vision long terme"]}
+];
+
+// --- State ---
+let currentSort = { key: null, dir: 'asc' };// dir: 'asc'|'desc'
+let filtered = [...DATA];
+
+// Populate department filter options
+const deptFilter = document.getElementById('deptFilter');
+[...new Set(DATA.map(r => r.department))].sort().forEach(dep => {
+  const opt = document.createElement('option'); opt.value = dep; opt.textContent = dep; deptFilter.appendChild(opt);
+});
+
+// Elements
+const searchInput = document.getElementById('searchInput');
+const tbody = document.getElementById('tbody');
+const emptyState = document.getElementById('emptyState');
+const resetBtn = document.getElementById('resetBtn');
+
+// Utility: Safely escape HTML
+function esc(str){ return String(str).replace(/[&<>"']/g, s=> ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;','\'':'&#39;'}[s])); }
+
+// Render table rows based on 'filtered'
+function render(){
+  tbody.innerHTML = '';
+  if(!filtered.length){ emptyState.classList.remove('hidden'); return; } else { emptyState.classList.add('hidden'); }
+  filtered.forEach((row,i) => {
+    const tr = document.createElement('tr');
+    tr.className = i % 2 === 0 ? 'bg-white' : 'bg-slate-50';
+    tr.innerHTML = [
+      `<td class="align-top px-3 py-2 font-medium text-slate-700">${esc(row.department)}</td>`,
+      `<td class="align-top px-3 py-2">${esc(row.use_case)}</td>`,
+      `<td class="align-top px-3 py-2 text-slate-600">${esc(row.description)}</td>`,
+      `<td class="align-top px-3 py-2"><span class="inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-medium ${badgeColor(row.roi_potential)}">${esc(row.roi_potential)}</span></td>`,
+      `<td class="align-top px-3 py-2"><span class="inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-medium ${complexityColor(row.complexity)}">${esc(row.complexity)}</span></td>`,
+      `<td class="align-top px-3 py-2"><ul class="list-disc list-inside space-y-0.5 text-slate-600">${row.examples.map(e=>`<li>${esc(e)}</li>`).join('')}</ul></td>`,
+      `<td class="align-top px-3 py-2"><ul class="list-disc list-inside space-y-0.5 text-slate-600">${row.impact.map(e=>`<li>${esc(e)}</li>`).join('')}</ul></td>`
+    ].join('');
+    tbody.appendChild(tr);
+  });
+  updateSortIndicators();
+}
+
+function badgeColor(v){
+  switch(v){
+    case 'High': return 'bg-emerald-100 text-emerald-700 ring-1 ring-emerald-200';
+    case 'Medium': return 'bg-amber-100 text-amber-700 ring-1 ring-amber-200';
+    case 'Low': return 'bg-slate-200 text-slate-700 ring-1 ring-slate-300';
+    default: return 'bg-slate-100 text-slate-600 ring-1 ring-slate-200';
+  }
+}
+function complexityColor(v){
+  switch(v){
+    case 'High': return 'bg-rose-100 text-rose-700 ring-1 ring-rose-200';
+    case 'Medium': return 'bg-indigo-100 text-indigo-700 ring-1 ring-indigo-200';
+    case 'Low': return 'bg-sky-100 text-sky-700 ring-1 ring-sky-200';
+    default: return 'bg-slate-100 text-slate-600 ring-1 ring-slate-200';
+  }
+}
+
+// Filtering
+function applyFilters(){
+  const q = searchInput.value.trim().toLowerCase();
+  const dep = deptFilter.value;
+  filtered = DATA.filter(r => {
+    const hay = [r.department, r.use_case, r.description, ...(r.examples||[]), ...(r.impact||[])].join(' ').toLowerCase();
+    const matchQ = !q || hay.includes(q);
+    const matchDep = !dep || r.department === dep;
+    return matchQ && matchDep;
+  });
+  applySort();
+  render();
+}
+
+// Sorting
+function applySort(){
+  if(!currentSort.key) return;
+  const { key, dir } = currentSort;
+  filtered.sort((a,b)=>{
+    const av = (a[key]||'').toString().toLowerCase();
+    const bv = (b[key]||'').toString().toLowerCase();
+    if(av < bv) return dir==='asc'? -1 : 1;
+    if(av > bv) return dir==='asc'? 1 : -1;
+    return 0;
+  });
+}
+
+function updateSortIndicators(){
+  document.querySelectorAll('th[data-col]').forEach(th => {
+    const span = th.querySelector('.sort-indicator');
+    const col = th.getAttribute('data-col');
+    if(currentSort.key === col){
+      span.textContent = currentSort.dir === 'asc' ? '▲' : '▼';
+      th.classList.add('text-indigo-600');
+    } else {
+      span.textContent = '';
+      th.classList.remove('text-indigo-600');
+    }
+  });
+}
+
+// Event listeners
+searchInput.addEventListener('input', debounce(applyFilters, 160));
+deptFilter.addEventListener('change', applyFilters);
+resetBtn.addEventListener('click', () => { searchInput.value=''; deptFilter.value=''; currentSort={key:null,dir:'asc'}; applyFilters(); });
+
+document.querySelectorAll('th[data-col]').forEach(th => {
+  th.addEventListener('click', ()=>{
+    const col = th.getAttribute('data-col');
+    if(currentSort.key === col){
+      currentSort.dir = currentSort.dir === 'asc' ? 'desc' : 'asc';
+    } else {
+      currentSort.key = col; currentSort.dir = 'asc';
+    }
+    applySort();
+    render();
+  });
+});
+
+// Simple debounce
+function debounce(fn, delay){ let t; return (...args)=>{ clearTimeout(t); t=setTimeout(()=> fn(...args), delay); }; }
+
+// Initial render
+applyFilters();
+</script>
+</body>
+</html>

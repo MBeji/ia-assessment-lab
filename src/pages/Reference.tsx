@@ -20,7 +20,7 @@ const ReferencePage = () => {
       <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-4 mb-6">
         <div>
           <h1 className="text-3xl font-semibold tracking-tight">Références & Guides</h1>
-          <p className="text-sm text-muted-foreground mt-2 max-w-2xl">Documentation centralisée: modèles de questionnaires, déroulé de mission, MODOP, livrables type et ressources externes.</p>
+          <p className="text-sm text-muted-foreground mt-2 max-w-2xl">Documentation centralisée: modèles de questionnaires, déroulé de mission, MODOP, livrables type et ressources externes. Consultez aussi le <a href="/reference/usecases" className="underline hover:text-primary">référentiel de cas d'usage IA</a>.</p>
         </div>
         <div className="flex items-center gap-2">
           <input value={query} onChange={e=> setQuery(e.target.value)} placeholder="Recherche..." className="h-9 px-3 rounded border bg-background text-sm w-64" />
