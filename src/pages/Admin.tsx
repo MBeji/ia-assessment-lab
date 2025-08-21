@@ -11,7 +11,7 @@ import { ImportExport } from "@/components/ImportExport";
 import { exportJSON } from "@/lib/export";
 
 const Admin = () => {
-  const { categories, questions, templates, templateId, applyTemplate, addQuestion, updateQuestion, removeQuestion, setDepartmentWeight, departmentWeights, departments, setCategoryWeight, categoryWeights, assessment, closeDepartment, reopenDepartment, isDepartmentClosed } = useAssessment() as any;
+  const { categories, questions, templates, templateId, applyTemplate, addQuestion, updateQuestion, removeQuestion, setDepartmentWeight, departmentWeights, departments, setCategoryWeight, categoryWeights, assessment, closeDepartment, reopenDepartment, isDepartmentClosed, normalizeCategoryWeights, resetCategoryWeights } = useAssessment() as any;
 
   const [selectedTemplate, setSelectedTemplate] = useState<string>(templateId);
   const template = useMemo(()=> templates.find(t => t.id === selectedTemplate), [templates, selectedTemplate]);
@@ -142,6 +142,10 @@ const Admin = () => {
             <CardDescription>Pondération des scores par catégorie (1 par défaut).</CardDescription>
           </CardHeader>
           <CardContent className="space-y-3">
+            <div className="flex gap-2 flex-wrap">
+              <Button size="sm" variant="secondary" onClick={()=> normalizeCategoryWeights?.()}>Normaliser</Button>
+              <Button size="sm" variant="outline" onClick={()=> resetCategoryWeights?.()}>Réinitialiser</Button>
+            </div>
             {categories.map(c => (
               <div key={c.id} className="grid grid-cols-2 items-center gap-3">
                 <Label htmlFor={`cw-${c.id}`}>{c.name}</Label>
