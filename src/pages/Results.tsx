@@ -17,7 +17,7 @@ import { Deferred } from '@/components/Deferred';
 
 const Results = () => {
   const nav = useNavigate();
-  const { assessment, categories, departments, responses, computeScores, scorecard, questions, generatePlan, plan, assessments, selectAssessment, getAssessmentScorecard, getAssessmentProgress, closeDepartment, reopenDepartment, isDepartmentClosed, getScoreHistory } = useAssessment() as any;
+  const { assessment, categories, departments, responses, computeScores, scorecard, questions, generatePlan, plan, assessments, selectAssessment, getAssessmentScorecard, getAssessmentProgress, closeDepartment, reopenDepartment, isDepartmentClosed, getScoreHistory, generateAnalysisPrompt } = useAssessment() as any;
   const allTags = useMemo(()=> Array.from(new Set(questions.flatMap((q:any)=> q.tags||[]))).sort(), [questions]);
   const [activeTags, setActiveTags] = useState<string[]>([]);
   const archived = assessments.filter(a => a.completedAt);
@@ -337,6 +337,23 @@ const Results = () => {
           </CardContent>
         </Card>
   </div>}
+
+  {sc && (assessment.workflowState==='QUESTIONNAIRE_TERMINE' || assessment.workflowState==='RESULTATS_GENERES' || assessment.workflowState==='PLAN_GENERE') && (
+    <div className="mt-6 grid md:grid-cols-1 gap-4">
+      <Card>
+        <CardHeader>
+          <CardTitle>Prompt d'analyse IA</CardTitle>
+          <CardDescription>À copier dans un modèle LLM pour obtenir une analyse et un plan d'action enrichi.</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-2">
+          <Button size="sm" variant="outline" onClick={()=> { const p = generateAnalysisPrompt(assessment.id); if(p){ navigator.clipboard.writeText(p); } }}>Copier le prompt</Button>
+          <pre className="text-[11px] whitespace-pre-wrap max-h-72 overflow-auto border rounded p-2 bg-muted/40">
+            {generateAnalysisPrompt(assessment.id) || 'Prompt en attente de calcul...'}
+          </pre>
+        </CardContent>
+      </Card>
+    </div>
+  )}
 
   {assessment && !assessment.completedAt && (
     <div className="mt-6 border rounded p-4 space-y-2">

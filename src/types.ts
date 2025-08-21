@@ -100,6 +100,7 @@ export interface Scorecard {
   aiCoreScore: number; // 0-100
   globalScore: number; // 0-100
   maturityLevel: MaturityLevel;
+  analysisPrompt?: string; // Synthèse textuelle prête pour IA
 }
 
 export interface ScoreHistoryEntry {

@@ -64,6 +64,7 @@ interface AssessmentContextValue extends AppStateSnapshot {
   exportPlanCSV: (id: string) => void;
   exportPlanXLSX: (id: string) => void;
   generateExecutiveSummary: (id: string) => string | undefined;
+  generateAnalysisPrompt?: (id: string) => string | undefined;
   generatePlanSuggestions?: (id: string) => void;
   closeDepartment: (assessmentId: string, dept: DepartmentId) => void;
   reopenDepartment: (assessmentId: string, dept: DepartmentId) => void;
@@ -481,7 +482,34 @@ export const AssessmentProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     const aiCoreScore = wCatSum>0 ? wCatX/wCatSum : 0;
     let wDeptSum=0, wDeptX=0; selected.forEach(d => { const w=deptW[d]; wDeptSum+=w; wDeptX += (departmentScores[d]||0)*w; });
     const globalScore = wDeptSum>0 ? wDeptX/wDeptSum : 0;
-    const sc: Scorecard = { id: genId(), assessmentId: assessment.id, categoryScores, departmentScores, aiCoreScore, globalScore, maturityLevel: maturityFromScore(globalScore) };
+    // Optional analysis prompt if questionnaire closed
+    let analysisPrompt: string | undefined;
+    if (assessment.workflowState === 'QUESTIONNAIRE_TERMINE' || assessment.workflowState === 'RESULTATS_GENERES' || assessment.workflowState === 'PLAN_GENERE') {
+      const top3 = [...cats].sort((a,b)=> (categoryScores[b.id]||0)-(categoryScores[a.id]||0)).slice(0,3);
+      const low3 = [...cats].sort((a,b)=> (categoryScores[a.id]||0)-(categoryScores[b.id]||0)).slice(0,3);
+      const lines: string[] = [];
+      lines.push('Contexte: Audit de maturité IA interne.');
+      lines.push(`Score global: ${Math.round(globalScore)}% (maturité: ${maturityFromScore(globalScore)}).`);
+      lines.push('Forces principales: ' + top3.map(c=> `${c.name} ${Math.round(categoryScores[c.id]||0)}%`).join(', ') + '.');
+      lines.push('Faiblesses principales: ' + low3.map(c=> `${c.name} ${Math.round(categoryScores[c.id]||0)}%`).join(', ') + '.');
+      // Department dispersion
+      const deptEntries = Object.entries(departmentScores).filter(([d])=> selected.includes(d as any));
+      if (deptEntries.length) {
+        const sorted = deptEntries.sort((a,b)=> b[1]-a[1]);
+        const best = sorted[0];
+        const worst = sorted[sorted.length-1];
+        lines.push(`Dispersion départements: meilleur ${best[0]} ${Math.round(best[1])}%, plus faible ${worst[0]} ${Math.round(worst[1])}%.`);
+      }
+      lines.push('Objectif: Générer analyse experte et propositions d’actions priorisées (gouvernance, données, technique, processus, people, risques).');
+      lines.push('Format de réponse attendu:');
+      lines.push('- Synthèse (≤150 mots)');
+      lines.push('- Top 5 actions à impact rapide (bullet); préciser justification brève');
+      lines.push('- 3 chantiers structurants (titre + description courte)');
+      lines.push('- Risques majeurs à surveiller');
+      lines.push('- Indicateurs suggérés pour suivi (3-5)');
+      analysisPrompt = lines.join('\n');
+    }
+    const sc: Scorecard = { id: genId(), assessmentId: assessment.id, categoryScores, departmentScores, aiCoreScore, globalScore, maturityLevel: maturityFromScore(globalScore), analysisPrompt };
     setScorecard(sc);
     setScoreHistories(prev => { const list = prev[assessment.id] || []; if (list.length && Math.abs(list[list.length-1].globalScore - sc.globalScore) < 0.01) return prev; return { ...prev, [assessment.id]: [...list, { ts: new Date().toISOString(), globalScore: sc.globalScore }] }; });
     if ((assessment.workflowState === 'QUESTIONNAIRE_TERMINE' || assessment.workflowState === 'QUESTIONNAIRE_EN_COURS') && answeredRatio() === 1) { setWorkflowState(assessment.id, 'RESULTATS_GENERES', { resultsGeneratedAt: new Date().toISOString() }); }
@@ -720,6 +748,18 @@ export const AssessmentProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     // persist into plan
     setPlan(prev => prev && prev.assessmentId===id ? { ...prev, executiveSummary: summary } : prev);
     return summary;
+  };
+
+  const generateAnalysisPrompt = (id: string) => {
+    const sc = getAssessmentScorecard(id);
+    if(!sc) return;
+    if (sc.analysisPrompt) return sc.analysisPrompt;
+    // Fallback: recompute scores to attach prompt
+    if (assessment && assessment.id===id) {
+      const updated = computeScores();
+      return updated.analysisPrompt;
+    }
+    return undefined;
   };
 
   const generatePlanSuggestions = (id: string) => {
@@ -1046,6 +1086,7 @@ export const AssessmentProvider: React.FC<{ children: React.ReactNode }> = ({ ch
   exportPlanCSV,
   exportPlanXLSX,
   generateExecutiveSummary,
+  generateAnalysisPrompt,
   generatePlanSuggestions,
   closeDepartment,
   reopenDepartment,
