@@ -195,21 +195,28 @@ document.querySelectorAll('th[data-col]').forEach(th => {
 // Simple debounce
 function debounce(fn, delay){ let t; return (...args)=>{ clearTimeout(t); t=setTimeout(()=> fn(...args), delay); }; }
 
-// Tente de charger depuis /usecases.json pour refléter exactement le JSON fourni
-fetch('./usecases.json').then(r => r.ok ? r.json() : Promise.reject()).then(json => {
-  if (Array.isArray(json)) {
-    DATA = json;
-    // Re-populate dept options
-    while (deptFilter.options.length > 1) deptFilter.remove(1);
-    [...new Set(DATA.map(r => r.department))].sort().forEach(dep => {
-      const opt = document.createElement('option'); opt.value = dep; opt.textContent = dep; deptFilter.appendChild(opt);
-    });
+// Tente de charger en priorité /ai_usecases.json puis /usecases.json
+(async function loadData() {
+  const tryPaths = ['./ai_usecases.json', './usecases.json'];
+  for (const p of tryPaths) {
+    try {
+      const r = await fetch(p);
+      if (!r.ok) continue;
+      const json = await r.json();
+      if (Array.isArray(json) && json.length) {
+        DATA = json;
+        while (deptFilter.options.length > 1) deptFilter.remove(1);
+        [...new Set(DATA.map(r => r.department))].sort().forEach(dep => {
+          const opt = document.createElement('option'); opt.value = dep; opt.textContent = dep; deptFilter.appendChild(opt);
+        });
+        applyFilters();
+        return;
+      }
+    } catch (_) { /* continue */ }
   }
-  applyFilters();
-}).catch(() => {
   // fallback to embedded DATA
   applyFilters();
-});
+})();
 </script>
 </body>
 </html>
