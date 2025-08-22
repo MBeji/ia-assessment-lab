@@ -51,8 +51,8 @@
   </footer>
 
 <script>
-// Données source (collées en dur conformément à la demande sans backend)
-const DATA = [
+// Données source (fallback); si usecases.json est présent, on le chargera dynamiquement
+let DATA = [
   {"department":"Ressources Humaines","use_case":"Tri et présélection des CV","description":"Analyse automatique des CV et classement selon la fiche de poste via NLP.","roi_potential":"High","complexity":"Medium","examples":["Matching compétences-fiche de poste","Classement automatique des CV"],"impact":["Gain de temps recrutement 50%","Réduction erreurs sélection"]},
   {"department":"Ressources Humaines","use_case":"Parsing web (LinkedIn, CVthèques)","description":"Recherche automatisée de profils correspondant aux fiches de poste.","roi_potential":"High","complexity":"High","examples":["Extraction LinkedIn","Scraping CV avec filtres intelligents"],"impact":["Pipeline candidats élargi","Temps sourcing -40%"]},
   {"department":"Ressources Humaines","use_case":"Entretiens par IA","description":"Conducteur d'entretien automatisé et analyse vocale/émotionnelle.","roi_potential":"Medium","complexity":"High","examples":["Chatbot entretien structuré","Scoring des réponses candidat"],"impact":["Standardisation évaluation","Gain de temps RH 30%"]},
@@ -195,8 +195,21 @@ document.querySelectorAll('th[data-col]').forEach(th => {
 // Simple debounce
 function debounce(fn, delay){ let t; return (...args)=>{ clearTimeout(t); t=setTimeout(()=> fn(...args), delay); }; }
 
-// Initial render
-applyFilters();
+// Tente de charger depuis /usecases.json pour refléter exactement le JSON fourni
+fetch('./usecases.json').then(r => r.ok ? r.json() : Promise.reject()).then(json => {
+  if (Array.isArray(json)) {
+    DATA = json;
+    // Re-populate dept options
+    while (deptFilter.options.length > 1) deptFilter.remove(1);
+    [...new Set(DATA.map(r => r.department))].sort().forEach(dep => {
+      const opt = document.createElement('option'); opt.value = dep; opt.textContent = dep; deptFilter.appendChild(opt);
+    });
+  }
+  applyFilters();
+}).catch(() => {
+  // fallback to embedded DATA
+  applyFilters();
+});
 </script>
 </body>
 </html>
