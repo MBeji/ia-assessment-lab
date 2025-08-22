@@ -20,18 +20,25 @@ self.addEventListener('activate', (event) => {
 self.addEventListener('fetch', (event) => {
   const req = event.request;
   if (req.method !== 'GET') return;
-  event.respondWith(
-    caches.match(req).then(cached => {
-      const fetchPromise = fetch(req).then(netRes => {
-        if (netRes && netRes.status === 200 && netRes.type === 'basic') {
-          const clone = netRes.clone();
-          caches.open(CACHE_NAME).then(cache => cache.put(req, clone));
-        }
-        return netRes;
-      }).catch(()=> cached);
-      return cached || fetchPromise;
-    })
-  );
+  event.respondWith((async () => {
+    const cached = await caches.match(req);
+    try {
+      const netRes = await fetch(req);
+      if (netRes && netRes.status === 200 && netRes.type === 'basic') {
+        const clone = netRes.clone();
+        caches.open(CACHE_NAME).then(cache => cache.put(req, clone));
+      }
+      return netRes;
+    } catch (err) {
+      if (cached) return cached;
+      // For SPA navigations, fall back to cached shell if available
+      if (req.mode === 'navigate') {
+        const shell = await caches.match('/index.html');
+        if (shell) return shell;
+      }
+      return new Response('Offline', { status: 503, statusText: 'Service Unavailable' });
+    }
+  })());
 });
 
 self.addEventListener('message', (event) => {

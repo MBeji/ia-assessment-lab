@@ -3,12 +3,6 @@ import { Layout } from '@/components/Layout';
 import { SEO } from '@/components/SEO';
 
 // Chargement depuis public/usecases.json pour refléter exactement la source
-const [data, setData] = useState<any[]>([]);
-useEffect(()=>{
-  fetch('/usecases.json').then(r=> r.ok? r.json(): []).then((j:any)=> {
-    if (Array.isArray(j) && j.length) setData(j); else setData([]);
-  }).catch(()=> setData([]));
-}, []);
 
 interface SortState { key: string | null; dir: 'asc' | 'desc'; }
 
@@ -30,9 +24,25 @@ const complexityClasses = (v: string) => {
 };
 
 const ReferenceUseCases: React.FC = () => {
+  const [data, setData] = useState<any[]>([]);
   const [search, setSearch] = useState('');
   const [dept, setDept] = useState('');
   const [sort, setSort] = useState<SortState>({ key: null, dir: 'asc' });
+
+  useEffect(() => {
+    let alive = true;
+    fetch('/usecases.json')
+      .then(r => (r.ok ? r.json() : []))
+      .then((j: any) => {
+        if (!alive) return;
+        if (Array.isArray(j) && j.length) setData(j);
+        else setData([]);
+      })
+      .catch(() => alive && setData([]));
+    return () => {
+      alive = false;
+    };
+  }, []);
 
   const departments = useMemo(()=> Array.from(new Set((data||[]).map((d:any) => d.department))).sort(), [data]);
 
@@ -54,7 +64,7 @@ const ReferenceUseCases: React.FC = () => {
       });
     }
     return rows;
-  }, [search, dept, sort]);
+  }, [data, search, dept, sort]);
 
   const toggleSort = (key: string) => {
     setSort(s => s.key === key ? { key, dir: s.dir === 'asc' ? 'desc' : 'asc' } : { key, dir: 'asc' });
@@ -108,8 +118,8 @@ const ReferenceUseCases: React.FC = () => {
                 <td className="align-top px-3 py-2 text-muted-foreground max-w-[340px]">{r.description}</td>
                 <td className="align-top px-3 py-2"><span className={`inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-medium ${badgeClasses(r.roi_potential)}`}>{r.roi_potential}</span></td>
                 <td className="align-top px-3 py-2"><span className={`inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-medium ${complexityClasses(r.complexity)}`}>{r.complexity}</span></td>
-                <td className="align-top px-3 py-2"><ul className="list-disc list-inside space-y-0.5 text-muted-foreground">{r.examples.map((e:string,j:number)=> <li key={j}>{e}</li>)}</ul></td>
-                <td className="align-top px-3 py-2"><ul className="list-disc list-inside space-y-0.5 text-muted-foreground">{r.impact.map((e:string,j:number)=> <li key={j}>{e}</li>)}</ul></td>
+                <td className="align-top px-3 py-2"><ul className="list-disc list-inside space-y-0.5 text-muted-foreground">{(r.examples||[]).map((e:string,j:number)=> <li key={j}>{e}</li>)}</ul></td>
+                <td className="align-top px-3 py-2"><ul className="list-disc list-inside space-y-0.5 text-muted-foreground">{(r.impact||[]).map((e:string,j:number)=> <li key={j}>{e}</li>)}</ul></td>
               </tr>
             ))}
           </tbody>
