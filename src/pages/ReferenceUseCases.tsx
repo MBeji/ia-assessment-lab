@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Layout } from '@/components/Layout';
 import { SEO } from '@/components/SEO';
 
@@ -23,22 +23,59 @@ const complexityClasses = (v: string) => {
   }
 };
 
+const normalizeLevel = (v: any): 'High' | 'Medium' | 'Low' | string => {
+  if (!v) return '';
+  const s = String(v).toLowerCase();
+  if (s.startsWith('h')) return 'High';
+  if (s.startsWith('m')) return 'Medium';
+  if (s.startsWith('l')) return 'Low';
+  return String(v);
+};
+
+const normalizeItems = (arr: any[]): any[] => {
+  if (!Array.isArray(arr)) return [];
+  return arr
+    .filter(Boolean)
+    .map((r: any) => ({
+      department: r.department ?? '',
+      use_case: r.use_case ?? r.title ?? r.name ?? '',
+      description: r.description ?? r.details ?? '',
+      roi_potential: normalizeLevel(r.roi_potential ?? r.roi ?? r.value_added_level),
+      complexity: normalizeLevel(r.complexity),
+      examples: Array.isArray(r.examples) ? r.examples : [],
+      impact: Array.isArray(r.impact) ? r.impact : [],
+    }))
+    .filter((r) => r.department && r.use_case);
+};
+
 const ReferenceUseCases: React.FC = () => {
   const [data, setData] = useState<any[]>([]);
   const [search, setSearch] = useState('');
   const [dept, setDept] = useState('');
   const [sort, setSort] = useState<SortState>({ key: null, dir: 'asc' });
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   useEffect(() => {
     let alive = true;
-    fetch('/usecases.json')
-      .then(r => (r.ok ? r.json() : []))
-      .then((j: any) => {
-        if (!alive) return;
-        if (Array.isArray(j) && j.length) setData(j);
-        else setData([]);
-      })
-      .catch(() => alive && setData([]));
+    const tryPaths = async () => {
+      const paths = ['/ai_usecases.json', '/usecases.json'];
+      for (const p of paths) {
+        try {
+          const resp = await fetch(p);
+          if (!resp.ok) continue;
+          const json = await resp.json();
+          const items = normalizeItems(json);
+          if (items.length) {
+            if (alive) setData(items);
+            return;
+          }
+        } catch (_) {
+          // continue
+        }
+      }
+      if (alive) setData([]);
+    };
+    tryPaths();
     return () => {
       alive = false;
     };
@@ -70,6 +107,26 @@ const ReferenceUseCases: React.FC = () => {
     setSort(s => s.key === key ? { key, dir: s.dir === 'asc' ? 'desc' : 'asc' } : { key, dir: 'asc' });
   };
 
+  const onImportClick = () => fileInputRef.current?.click();
+  const onFileChange: React.ChangeEventHandler<HTMLInputElement> = async (e) => {
+    const f = e.target.files?.[0];
+    if (!f) return;
+    try {
+      const text = await f.text();
+      const json = JSON.parse(text);
+      const items = normalizeItems(json);
+      setData(items);
+      // reset filters to show everything
+      setSearch('');
+      setDept('');
+      setSort({ key: null, dir: 'asc' });
+    } catch (err) {
+      console.error('Invalid JSON file', err);
+    } finally {
+      if (fileInputRef.current) fileInputRef.current.value = '';
+    }
+  };
+
   return (
     <Layout>
       <SEO title="SynapFlow – Cas d'Usage IA" description="Référentiel filtrable de cas d'usage IA" canonical={window.location.origin + '/reference/usecases'} />
@@ -85,6 +142,10 @@ const ReferenceUseCases: React.FC = () => {
             {departments.map(d => <option key={d} value={d}>{d}</option>)}
           </select>
           {(search || dept) && <button onClick={()=> { setSearch(''); setDept(''); setSort({ key:null, dir:'asc'}); }} className="h-10 px-3 rounded-md border text-sm bg-muted hover:bg-muted/80">Réinitialiser</button>}
+          <div className="flex items-center gap-2">
+            <button onClick={onImportClick} className="h-10 px-3 rounded-md border text-sm bg-primary text-primary-foreground hover:opacity-90">Importer JSON</button>
+            <input ref={fileInputRef} type="file" accept="application/json" className="hidden" onChange={onFileChange} />
+          </div>
         </div>
       </div>
       <div className="overflow-auto rounded-lg border bg-background shadow-sm">
