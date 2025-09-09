@@ -127,6 +127,29 @@ const ReferenceUseCases: React.FC = () => {
     }
   };
 
+  const exportJSON = () => {
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = 'usecases.json';
+    document.body.appendChild(a); a.click(); a.remove();
+    URL.revokeObjectURL(url);
+  };
+
+  const exportCSV = () => {
+    if(!data.length) return;
+    const headers = ['department','use_case','description','roi_potential','complexity','examples','impact'];
+    const rows = data.map(r => headers.map(h => {
+      const val = h==='examples'? (r.examples||[]).join(' | '): h==='impact'? (r.impact||[]).join(' | '): (r as any)[h] || '';
+      const s = String(val).replace(/"/g,'""');
+      return '"'+s+'"';
+    }).join(','));
+    const csv = [headers.join(','), ...rows].join('\n');
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a'); a.href=url; a.download='usecases.csv'; document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
+  };
+
   return (
     <Layout>
       <SEO title="SynapFlow – Cas d'Usage IA" description="Référentiel filtrable de cas d'usage IA" canonical={window.location.origin + '/reference/usecases'} />
@@ -142,8 +165,10 @@ const ReferenceUseCases: React.FC = () => {
             {departments.map(d => <option key={d} value={d}>{d}</option>)}
           </select>
           {(search || dept) && <button onClick={()=> { setSearch(''); setDept(''); setSort({ key:null, dir:'asc'}); }} className="h-10 px-3 rounded-md border text-sm bg-muted hover:bg-muted/80">Réinitialiser</button>}
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
             <button onClick={onImportClick} className="h-10 px-3 rounded-md border text-sm bg-primary text-primary-foreground hover:opacity-90">Importer JSON</button>
+            <button onClick={exportJSON} className="h-10 px-3 rounded-md border text-sm bg-background hover:bg-accent">Exporter JSON</button>
+            <button onClick={exportCSV} className="h-10 px-3 rounded-md border text-sm bg-background hover:bg-accent">Exporter CSV</button>
             <input ref={fileInputRef} type="file" accept="application/json" className="hidden" onChange={onFileChange} />
           </div>
         </div>

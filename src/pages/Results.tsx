@@ -162,6 +162,40 @@ const Results = () => {
             </div>
           </div>}
         </div>
+        {assessment && (
+          <div className="flex items-center gap-2 ml-auto pr-1">
+            <button
+              type="button"
+              onClick={() => {
+                try {
+                  const scLocal = getAssessmentScorecard(assessment.id);
+                  const payload = { assessment, scorecard: scLocal, exportedAt: new Date().toISOString() };
+                  const blob = new Blob([JSON.stringify(payload,null,2)], { type:'application/json' });
+                  const url = URL.createObjectURL(blob); const a=document.createElement('a'); a.href=url; a.download=`assessment-${assessment.id}.json`; document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
+                } catch(e){ console.error(e); }
+              }}
+              className="h-7 px-2 rounded border bg-background text-[11px] hover:bg-accent"
+            >Export JSON</button>
+            <button
+              type="button"
+              onClick={() => {
+                try {
+                  const scLocal = getAssessmentScorecard(assessment.id);
+                  if(!scLocal) return;
+                  const headers = ['category','score'];
+                  const catRows = Object.entries(scLocal.categoryScores||{}).map(([cid,val])=>{
+                    const cat = categories.find(c=> c.id===cid); return { category: cat? cat.name: cid, score: Math.round(val as number)};
+                  });
+                  const rows = catRows.map(r=> `"${r.category.replace(/"/g,'""')}" , "${r.score}"`);
+                  const csv = [headers.join(','), ...rows].join('\n');
+                  const blob = new Blob([csv], { type:'text/csv;charset=utf-8;' });
+                  const url = URL.createObjectURL(blob); const a=document.createElement('a'); a.href=url; a.download=`assessment-${assessment.id}-categories.csv`; document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
+                } catch(e){ console.error(e); }
+              }}
+              className="h-7 px-2 rounded border bg-background text-[11px] hover:bg-accent"
+            >Export CSV</button>
+          </div>
+        )}
       </div>
     </div>
   );
